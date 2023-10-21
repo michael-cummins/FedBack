@@ -6,7 +6,6 @@ import torch.nn as nn
 def scale_params(model_params, a):
     for param in model_params:
         param.data = a*param
-    return model_params
 
 def add_params(model1_params, model2_params):
     """
@@ -21,8 +20,6 @@ def subtract_params(model1_params, model2_params):
     """
     for param1, param2 in zip(model1_params, model2_params):
         param1.data =  param1 - param2
-    return model1_params
-
 
 # --------- Generators ---------
 
@@ -46,3 +43,13 @@ def scale_params_gen(model_params, a):
     """
     for param1 in model_params:
         yield a*param1 
+
+def average_params(model_params):
+    N = len(model_params)
+    return [sum(params)/N for params in zip(*model_params)]
+       
+
+def sum_params(model_params):
+    for params in zip(*model_params):
+        yield sum(params)
+

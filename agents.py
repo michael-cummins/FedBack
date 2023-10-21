@@ -62,57 +62,89 @@ class EventGlobalConsensus(GlobalConsensus):
         ######## replace with SGD torch
         self.x = (self.rho*self.primal_avg - self.lam + 2*self.C)/(2+self.rho)
         ########
-        self.residual = (self.x - self.last_communicated)/self.N
-
+    
         if np.linalg.norm(self.x-self.last_communicated, ord=2) >= self.delta: 
+            self.residual = (self.x - self.last_communicated)/self.N
             self.last_communicated = self.x
             self.broadcast = True
         else:
             self.broadcast = False
-
+    
+    def dual_update(self) -> None:
+        self.lam = self.lam + self.rho*(self.x - self.primal_avg)
 
 class EventGlobalConsensusTorch(EventGlobalConsensus):
 
     def __init__(self, rho : int, N : int, delta : int, model : nn.Module,
                  loss, x_init=None, lam_init=None, z_init=None, nu_init=None) -> None:
-        super().__init__(rho, x_init, N, delta, lam_init, z_init, nu_init)
+        super().__init__(rho, N, delta, x_init, lam_init, z_init, nu_init)
 
         """
-        lam_init is a generator containting dual parameters, not a model -> similar to model.parameters()
-        x_init is a generator containting dual parameters, not a model -> similar to model.parameters()
+        x_init/lam_init are generators containting primal/dual parameters, not a model -> similar to model.parameters()
         If a model is passed - the parameters should be initialised within the model rather than passing x_init
-        self.primal_avg is also represented as a generator containing model parameters
+        self.primal_avg and self.resiudal are also represented as generators containing model parameters
         """
 
-        self.lr = 0.1
-        self.model = model()
+        self.lr = 0.01
+        self.model = model
         self.loss = loss
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, weight_decay=self.lr*self.rho)
-        self.last_communicated = [param for param in self.model.parameters()]
+        with torch.no_grad():
+            self.last_communicated = self.copy_model_params()
+            self.residual = self.copy_model_params()
+        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, weight_decay=self.lr*self.rho)
 
     def primal_update(self) -> None:
         
-        old_params = [param for param in self.model.paramaters()]
-        
+        # print('\nBefore Update')
+        # for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
+        #     print(old_param.data)
+        #     print(updated_param.data)
+
         # SGD with weight decay
-        for _ in range(100):
+        for _ in range(200):
+
+            # First update
             self.optimizer.zero_grad()
-            self.loss(self.model(), p=2).backward()
+            loss = 0
+            for param in self.model.parameters():
+                loss += torch.norm(param)
+            loss.backward()
             self.optimizer.step() 
-            add_params(self.model.parameters(), scale_params())
+            
+            # Second update
+            for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
+                param.data += dual_param/self.rho - avg
 
-        # calculate residual
-        self.residual = [(param - last_comm)/self.N for param, last_comm in zip(self.model.parameters(), self.last_communicated)]
-
+        # print('\nAfter Update')
         # check for how much paramters changed
         delta = 0
-        for old_param, updated_param in zip(old_params, self.model.parameters()):
-            delta += torch.norm(old_param-updated_param, p='fro')
+        for param in self.last_communicated: print(param)
+        for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
+            # print(old_param.data)
+            # print(updated_param.data)
+            delta += torch.norm(old_param.data-updated_param.data, p='fro')
         
-        if delta >= self.delta:
-            self.last_communicated = [param for param in self.model.parameters()]
+        # print(f'delta : {delta}, thresh : {self.delta}')
+        # If "send on delta" then update residual and broadcast to other agents
+        if delta >= self.delta:       
+            self.update_residual()
+            self.last_communicated = self.copy_model_params
             self.broadcast = True
         else:
             self.broadcast = False
 
-        
+    def dual_update(self) -> None:  
+        primal_copy = self.copy_model_params()
+        subtract_params(primal_copy, self.primal_avg)
+        scale_params(primal_copy, a=self.rho)
+        add_params(self.lam, primal_copy)
+
+    def update_residual(self):
+        self.residual = self.copy_model_params()
+        subtract_params(self.residual, self.last_communicated)
+        # print(self.residual)
+        scale_params(self.residual, a=1/self.N)
+
+    def copy_model_params(self):
+        copy = [torch.zeros(param.shape).copy_(param) for param in self.model.parameters()]
+        return copy
