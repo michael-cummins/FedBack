@@ -1,8 +1,8 @@
 import numpy as np
 import torch.nn as nn
 import torch
-from utils import *
-from models import Dummy
+from admm.utils import *
+from admm.models import Dummy
 
 class Agent():
 
