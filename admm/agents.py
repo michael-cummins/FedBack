@@ -75,15 +75,33 @@ class EventGlobalConsensusTorch:
         return copy
 
 class FedConsensus(EventGlobalConsensusTorch):
+
+    """
+    Distributed event-based ADMM for federated learning
+    """
+    
     def __init__(self, rho: int, N: int, delta: int, model: nn.Module, loss: nn.Module, 
                  train_loader: DataLoader, classification: bool, epochs: int) -> None:
         super().__init__(rho, N, delta, model)
+        
+        self.primal_avg = None
+        self.rho=rho
+        self.N=N
+        self.delta = delta
+        self.lr = 0.001
+        self.max_iters = 1000
+        self.model = model
+        self.last_communicated = self.copy_params(self.model.parameters())
+        self.residual = self.copy_params(self.model.parameters())
+        self.lam = [torch.zeros(param.shape) for param in self.model.parameters()]
+        self.optimizer = torch.optim.RMSprop(self.model.parameters(), self.lr)
         self.train_loader = train_loader
         self.criterion = loss
         self.max_iters = epochs
         self.classification = classification
 
     def primal_update(self) -> None:
+
         # Solve argmin problem
         for _ in range(self.max_iters):
             for data, target in self.train_loader:
