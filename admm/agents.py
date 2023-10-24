@@ -89,7 +89,6 @@ class FedConsensus(EventGlobalConsensusTorch):
         self.N=N
         self.delta = delta
         self.lr = 0.001
-        self.max_iters = 1000
         self.model = model
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
@@ -119,7 +118,7 @@ class FedConsensus(EventGlobalConsensusTorch):
         # check for how much paramters changed
         delta = []
         for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
-            delta.append(torch.norm(old_param.data-updated_param.data).item())
+            delta.append(torch.norm(old_param.data-updated_param.data, p='fro').item())
         
         # If "send on delta" then update residual and broadcast to other agents
         if any(d >= self.delta for d in delta):       
