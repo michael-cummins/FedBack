@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 class mnistNet(nn.Module):
 
     def __init__(self, in_channels, hidden1, out_channels, hidden2=None) -> None:
@@ -19,6 +18,7 @@ class mnistNet(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
 class Dummy(nn.Module):
 
     def __init__(self, x) -> None:
