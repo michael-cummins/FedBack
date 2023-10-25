@@ -41,7 +41,7 @@ class EventGlobalConsensusTorch:
             for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                 loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
             for param in self.model.parameters():
-                loss += torch.norm(param-10*torch.ones(param.shape), p='fro')
+                loss += torch.norm(param-torch.ones(param.shape), p='fro')
             loss.backward()
             self.optimizer.step() 
             iter += 1

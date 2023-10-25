@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class mnistNet(nn.Module):
+class FCNet(nn.Module):
 
     def __init__(self, in_channels, hidden1, out_channels, hidden2=None) -> None:
         super().__init__()
