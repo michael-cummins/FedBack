@@ -21,6 +21,10 @@ def subtract_params(model1_params, model2_params):
     for param1, param2 in zip(model1_params, model2_params):
         param1.data =  param1 - param2
 
+def average_params(model_params):
+    N = len(model_params)
+    return [sum(params)/N for params in zip(*model_params)]
+       
 # --------- Generators ---------
 
 def add_params_gen(model1_params, model2_params):
