@@ -1,6 +1,18 @@
 import torch
 import torch.nn as nn
 
+
+def split_dataset(dataset, train_ratio, val_ratio):
+    dataset_length = len(dataset)
+    train_length = int(train_ratio * dataset_length)
+    val_length = int(val_ratio * dataset_length)
+    test_length = dataset_length - train_length - val_length
+    train_dataset_fc, val_dataset_fc, test_dataset_fc = torch.utils.data.random_split(
+        dataset, 
+        [train_length, val_length, test_length]
+    )   
+    return train_dataset_fc, val_dataset_fc, test_dataset_fc
+
 # --------- Functions ---------
 
 def scale_params(model_params, a):
