@@ -1,5 +1,5 @@
 import torch
-from typing import Tuple, List
+from typing import List
 from admm.utils import sum_params, add_params
 from admm import agents
 from tqdm import tqdm
@@ -8,12 +8,16 @@ import numpy as np
 
 class EventADMM:
 
-    def __init__(self, clients, t_max: int) -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int) -> None:
         self.agents = clients
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
+        
+        # For experiment purposes
+        self.rates = []
+        self.val_accs = []
 
     def spin(self, loader=None) -> None:
         
@@ -49,15 +53,22 @@ class EventADMM:
             # Dual update
             for agent in self.agents:
                 agent.dual_update()
-    
+
+            # For experiment purposes
+            self.rates.append(freq)
+            self.val_accs.append(sum(accuracies)/len(accuracies))
+
+        self.rates = np.array(self.rates)
+        self.val_accs = np.array(self.val_accs)
+
     def validate(self, loader: DataLoader) -> List[float]:
         total = 0
         wrong_count = np.zeros(self.N)
         for data, target in loader:
             total += target.shape[0] 
             with torch.no_grad():
-                data = data.reshape(-1, 28*28)
                 for i, agent in enumerate(self.agents):
+                    data, target = data.to(agent.device), target.to(agent.device)
                     out = torch.argmax(agent.model(data), dim=1)
                     wrong_count[i] += torch.count_nonzero(out-target)
         model_accs = [1 - wrong/total for wrong in wrong_count]
