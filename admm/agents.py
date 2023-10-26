@@ -127,7 +127,7 @@ class FedConsensus(EventGlobalConsensusTorch):
         else:
             self.broadcast = False
 
-class Agent():
+class Agent:
 
     def __init__(self, rho, x_init=None, lam_init=None, z_init=None, nu_init=None) -> None:
         self.rho = rho
