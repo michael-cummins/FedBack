@@ -15,6 +15,7 @@ setup(
     install_requires=[
         'numpy>=1.25.2',
         'torch>=1.0',
+        'torchvision>=1.0',
     ],
     classifiers=[
         "Programming Language :: Python :: 3"
