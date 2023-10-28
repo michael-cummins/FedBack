@@ -10,17 +10,26 @@ class CNN(nn.Module):
             nn.Conv2d(
                 in_channels=1,              
                 out_channels=4,            
-                kernel_size=2,              
-                stride=2,                   
-                padding=2,                  
+                kernel_size=2,       
+                stride=2                      
             ),                              
             nn.ReLU(),                      
             nn.MaxPool2d(kernel_size=2),    
         )
-        self.fc = FCNet(in_channels=256, hidden1=50, out_channels=2)
+        self.conv2 = nn.Sequential(         
+            nn.Conv2d(
+                in_channels=4,              
+                out_channels=10,            
+                kernel_size=2,                      
+            ),                              
+            nn.ReLU(),                      
+            nn.MaxPool2d(kernel_size=2),    
+        )
+        self.fc = FCNet(in_channels=196, hidden1=50, out_channels=2)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
+        # x = self.conv2(x)
         x = x.view(x.size(0), -1)
         return self.fc(x)
 
