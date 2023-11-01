@@ -2,7 +2,6 @@ import numpy as np
 import torch.nn as nn
 import torch
 from admm.utils import *
-from admm.utils import nn
 from torch.utils.data.dataloader import DataLoader
 
 class EventGlobalConsensusTorch:
@@ -14,6 +13,7 @@ class EventGlobalConsensusTorch:
         If a model is passed - the parameters should be initialised within the model rather than passing x_init
         self.primal_avg and self.resiudal are also represented as generators containing model parameters
         """
+        
         self.device = device
         self.primal_avg = None
         self.rho=rho
