@@ -81,14 +81,14 @@ class FedConsensus(EventGlobalConsensusTorch):
     """
     
     def __init__(self, rho: int, N: int, delta: int, model: nn.Module, loss: nn.Module, 
-                 train_loader: DataLoader, classification: bool, epochs: int, device: str) -> None:
+                 train_loader: DataLoader, classification: bool, epochs: int, device: str, lr: float) -> None:
         super().__init__(rho, N, delta, model, device)
         
         self.primal_avg = None
         self.rho=rho
         self.N=N
         self.delta = delta
-        self.lr = 0.001
+        self.lr = lr
         self.model = model.to(self.device)
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())

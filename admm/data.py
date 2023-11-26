@@ -1,4 +1,6 @@
-"""Functions for dataset download and processing."""
+import torch
+import torch.nn as nn
+
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -7,6 +9,16 @@ import torchvision.transforms as transforms
 from torch.utils.data import ConcatDataset, Dataset, Subset, random_split
 from torchvision.datasets import MNIST
 
+def split_dataset(dataset, train_ratio, val_ratio):
+    dataset_length = len(dataset)
+    train_length = int(train_ratio * dataset_length)
+    val_length = int(val_ratio * dataset_length)
+    test_length = dataset_length - train_length - val_length
+    train_dataset_fc, val_dataset_fc, test_dataset_fc = torch.utils.data.random_split(
+        dataset, 
+        [train_length, val_length, test_length]
+    )   
+    return train_dataset_fc, val_dataset_fc, test_dataset_fc
 
 def _download_data() -> Tuple[Dataset, Dataset]:
     """Download (if necessary) and returns the MNIST dataset.
@@ -25,7 +37,7 @@ def _download_data() -> Tuple[Dataset, Dataset]:
 
 
 # pylint: disable=too-many-locals
-def _partition_data(
+def partition_data(
     num_clients,
     labels_per_partition: int,
     iid: Optional[bool] = False,
