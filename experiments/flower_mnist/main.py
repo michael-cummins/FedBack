@@ -46,8 +46,8 @@ def get_evaluate_fn(test_loader):
 
 @hydra.main(config_path='conf', config_name='base', version_base=None)
 def main(cfg: DictConfig):
-        
-    train_loaders, val_loader, test_loader = get_mnist_data(cfg.batch_size, root='../data/mnist_data/')
+
+    train_loaders, val_loader, test_loader = get_mnist_data(cfg.batch_size, root='experiments/data/mnist_data/')
     client_fn = generate_client_fn(train_loaders, val_loader)
     
     strategy = fl.server.strategy.FedAvg(

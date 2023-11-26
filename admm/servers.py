@@ -20,13 +20,17 @@ class EventADMM:
         self.val_accs = []
 
     def spin(self, loader=None) -> None:
-        
+        overfit = True
         for t in self.pbar:
     
             # Primal Update
             for agent in self.agents:
-                agent.primal_update()
-            
+                if overfit: 
+                    agent.primal_update(overfit)
+                else: 
+                    agent.primal_update()
+            overfit = False
+          
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:

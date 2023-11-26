@@ -27,6 +27,7 @@ class EventGlobalConsensusTorch:
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), self.lr)
 
+
     def primal_update(self) -> None:
 
         # Solve argmin problem
@@ -92,13 +93,13 @@ class FedConsensus(EventGlobalConsensusTorch):
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        self.optimizer = torch.optim.RMSprop(self.model.parameters(), self.lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
         self.criterion = loss
         self.max_iters = epochs
         self.classification = classification
 
-    def primal_update(self) -> None:
+    def primal_update(self, overfit=False) -> None:
 
         # Solve argmin problem
         for _ in range(self.max_iters):
@@ -106,8 +107,9 @@ class FedConsensus(EventGlobalConsensusTorch):
                 data, target = data.to(self.device), target.to(self.device)
                 out = self.model(data)
                 loss = self.criterion(out, target)
-                for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                    loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
+                if not overfit:
+                    for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
+                        loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
