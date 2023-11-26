@@ -20,7 +20,7 @@ class EventADMM:
         self.val_accs = []
 
     def spin(self, loader=None) -> None:
-        overfit = True
+        overfit = False
         for t in self.pbar:
     
             # Primal Update

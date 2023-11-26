@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class CNN(nn.Module):
 
-    def __init__(self) -> None:
+    def __init__(self, num_classes=10) -> None:
         super().__init__()
 
         self.conv1 = nn.Sequential(         
@@ -25,7 +25,7 @@ class CNN(nn.Module):
             nn.ReLU(),                      
             nn.MaxPool2d(kernel_size=2),    
         )
-        self.fc = FCNet(in_channels=196, hidden1=50, out_channels=2)
+        self.fc = FCNet(in_channels=196, hidden1=50, out_channels=num_classes)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)

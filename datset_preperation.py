@@ -78,7 +78,7 @@ def _partition_data(
             datasets = _power_law_split(
                 trainset_sorted,
                 num_partitions=num_clients,
-                num_labels_per_partition=2,
+                num_labels_per_partition=10,
                 min_data_per_partition=10,
                 mean=0.0,
                 sigma=2.0,
@@ -168,7 +168,6 @@ def _sort_by_class(
         idxs = torch.Tensor(trainset.targets).argsort()
     else:
         idxs = trainset.targets.argsort()  # sort targets in ascending order
-    print(idxs)
     tmp = []  # create subset of smallest class
     tmp_targets = []  # same for targets
 
@@ -193,7 +192,7 @@ def _sort_by_class(
 def _power_law_split(
     sorted_trainset: Dataset,
     num_partitions: int,
-    num_labels_per_partition: int = 2,
+    num_labels_per_partition: int = 10,
     min_data_per_partition: int = 10,
     mean: float = 0.0,
     sigma: float = 2.0,
