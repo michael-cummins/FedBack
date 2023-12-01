@@ -96,13 +96,14 @@ class FedConsensus(EventGlobalConsensusTorch):
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
         self.criterion = loss
-        self.max_iters = epochs
+        self.epochs = epochs
         self.classification = classification
 
     def primal_update(self, overfit=False) -> None:
 
         # Solve argmin problem
-        for _ in range(self.max_iters):
+        self.model.train()
+        for _ in range(self.epochs):
             for data, target in self.train_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 out = self.model(data)
