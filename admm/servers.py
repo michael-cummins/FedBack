@@ -36,7 +36,7 @@ class EventADMM:
             if loader is not None:
                 accuracies = self.validate(loader=loader)
                 for i, acc in enumerate(accuracies):
-                    acc_descrption += f', agent {i}: {acc:.2f}'
+                    acc_descrption += f', A {i}: {acc:.2f}'
 
             # Residual update in the case of communication
             C = []
@@ -52,7 +52,7 @@ class EventADMM:
             
             # Analyse communication frequency
             freq = self.comm/((t+1)*self.N)
-            self.pbar.set_description(f'Comm frequency: {freq:.3f}' + acc_descrption)
+            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption)
             
             # Dual update
             for agent in self.agents:

@@ -4,6 +4,78 @@ import torch
 from admm.utils import *
 from torch.utils.data.dataloader import DataLoader
 
+class FedConsensus:
+
+    """
+    Distributed event-based ADMM for federated learning
+    """
+    
+    def __init__(self, rho: int, N: int, delta: int, model: nn.Module, loss: nn.Module, 
+                 train_loader: DataLoader, epochs: int, device: str, 
+                 lr: float, data_ratio: float) -> None:        
+        self.primal_avg = None
+        self.device = device
+        self.rho=rho
+        self.N=N
+        self.delta = delta
+        self.lr = lr
+        self.model = model.to(self.device)
+        self.last_communicated = self.copy_params(self.model.parameters())
+        self.residual = self.copy_params(self.model.parameters())
+        self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, weight_decay=0.001)
+        self.train_loader = train_loader
+        self.criterion = loss
+        self.epochs = epochs
+        self.data_ratio = data_ratio
+        # Get number of params in model
+        self.total_params = sum(param.numel() for param in model.parameters())
+
+    def primal_update(self, overfit=False) -> None:
+
+        # Solve argmin problem
+        for _ in range(self.epochs):
+            for data, target in self.train_loader:
+                data, target = data.to(self.device), target.to(self.device)
+                out = self.model(data)
+                loss = self.criterion(out, target)*self.data_ratio
+                if not overfit:
+                    for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
+                        loss += (torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2)*self.rho/2
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step() 
+
+        # check for how much paramters changed
+        delta = 0
+        for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
+            delta += torch.norm(old_param.data-updated_param.data, p='fro').item()**2
+        d = delta/self.total_params
+
+        # If "send on delta" then update residual and broadcast to other agents
+        if d >= self.delta:      
+            self.update_residual()
+            self.last_communicated = self.copy_params(self.model.parameters())
+            self.broadcast = True
+        else:
+            self.broadcast = False
+
+    def dual_update(self) -> None:  
+        primal_copy = self.copy_params(self.model.parameters())
+        subtract_params(primal_copy, self.primal_avg)
+        scale_params(primal_copy, a=self.rho)
+        add_params(self.lam, primal_copy)
+
+    def update_residual(self):
+        self.residual = self.copy_params(self.model.parameters())
+        subtract_params(self.residual, self.last_communicated)
+        scale_params(self.residual, a=1/self.N)
+
+    def copy_params(self, params):
+        copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
+        return copy
+
 class EventGlobalConsensusTorch:
 
     def __init__(self, rho : int, N : int, delta : int, model : nn.Module, device: str) -> None:
@@ -62,7 +134,7 @@ class EventGlobalConsensusTorch:
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
-        scale_params(primal_copy, a=self.lr)
+        scale_params(primal_copy, a=self.rho)
         add_params(self.lam, primal_copy)
 
     def update_residual(self):
@@ -73,62 +145,6 @@ class EventGlobalConsensusTorch:
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
-
-class FedConsensus(EventGlobalConsensusTorch):
-
-    """
-    Distributed event-based ADMM for federated learning
-    """
-    
-    def __init__(self, rho: int, N: int, delta: int, model: nn.Module, loss: nn.Module, 
-                 train_loader: DataLoader, classification: bool, epochs: int, device: str, lr: float) -> None:
-        super().__init__(rho, N, delta, model, device)
-        
-        self.primal_avg = None
-        self.rho=rho
-        self.N=N
-        self.delta = delta
-        self.lr = lr
-        self.model = model.to(self.device)
-        self.last_communicated = self.copy_params(self.model.parameters())
-        self.residual = self.copy_params(self.model.parameters())
-        self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
-        self.train_loader = train_loader
-        self.criterion = loss
-        self.epochs = epochs
-        self.classification = classification
-
-    def primal_update(self, overfit=False) -> None:
-
-        # Solve argmin problem
-        self.model.train()
-        for _ in range(self.epochs):
-            for data, target in self.train_loader:
-                data, target = data.to(self.device), target.to(self.device)
-                out = self.model(data)
-                loss = self.criterion(out, target)
-                if not overfit:
-                    for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                        loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step() 
-
-        # check for how much paramters changed
-        delta = []
-        for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
-            delta.append(torch.norm(old_param.data-updated_param.data, p='fro').item())
-        
-        # If "send on delta" then update residual and broadcast to other agents
-        # if any(d >= self.delta for d in delta): 
-        d = sum(delta)
-        if d >= self.delta:      
-            self.update_residual()
-            self.last_communicated = self.copy_params(self.model.parameters())
-            self.broadcast = True
-        else:
-            self.broadcast = False
 
 class Agent:
 
