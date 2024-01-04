@@ -31,8 +31,10 @@ class EventADMM:
             acc_descrption = ''
             if loader is not None:
                 accuracies = self.validate(loader=loader)
-                for i, acc in enumerate(accuracies):
-                    acc_descrption += f', A {i}: {acc:.2f}'
+                avg_acc = sum(accuracies)/len(accuracies)
+                # for i, acc in enumerate(accuracies):
+                #     acc_descrption += f', A {i}: {acc:.2f}'
+                acc_descrption = f', Avg Acc: {avg_acc}'
 
             # Residual update in the case of communication
             C = []

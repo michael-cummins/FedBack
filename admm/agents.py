@@ -23,8 +23,8 @@ class FedConsensus:
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, weight_decay=0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        # self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, weight_decay=0.001)
         self.train_loader = train_loader
         self.criterion = loss
         self.epochs = epochs
@@ -39,12 +39,12 @@ class FedConsensus:
             for data, target in self.train_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 out = self.model(data)
-                # loss = self.criterion(out, target)*self.data_ratio
-                loss = self.criterion(out, target)*self.data_ratio
+                prox = 0.0
                 if not overfit:
                     for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                         # loss += (torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2)*self.rho/2
-                        loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
+                        prox += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
+                loss = self.criterion(out, target)*self.data_ratio + prox*self.rho/2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
@@ -66,8 +66,8 @@ class FedConsensus:
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
-        scale_params(primal_copy, a=self.lr)
-        # scale_params(primal_copy, a=self.rho)
+        # scale_params(primal_copy, a=self.lr)
+        scale_params(primal_copy, a=self.rho)
         add_params(self.lam, primal_copy)
 
     def update_residual(self):
