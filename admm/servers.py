@@ -25,11 +25,7 @@ class EventADMM:
     
             # Primal Update
             for agent in self.agents:
-                if overfit: 
-                    agent.primal_update(overfit)
-                else: 
-                    agent.primal_update()
-            overfit = False
+                agent.primal_update()
           
             # Test updated params on validation set
             acc_descrption = ''

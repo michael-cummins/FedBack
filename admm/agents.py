@@ -39,10 +39,12 @@ class FedConsensus:
             for data, target in self.train_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 out = self.model(data)
+                # loss = self.criterion(out, target)*self.data_ratio
                 loss = self.criterion(out, target)*self.data_ratio
                 if not overfit:
                     for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                        loss += (torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2)*self.rho/2
+                        # loss += (torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2)*self.rho/2
+                        loss += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
@@ -64,7 +66,8 @@ class FedConsensus:
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
-        scale_params(primal_copy, a=self.rho)
+        scale_params(primal_copy, a=self.lr)
+        # scale_params(primal_copy, a=self.rho)
         add_params(self.lam, primal_copy)
 
     def update_residual(self):
@@ -75,6 +78,14 @@ class FedConsensus:
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
+
+class FedAVG:
+
+    def __init__(self):
+        pass
+
+    def fit(self):
+        pass
 
 class EventGlobalConsensusTorch:
 
