@@ -38,13 +38,11 @@ class FedConsensus:
         for _ in range(self.epochs):
             for data, target in self.train_loader:
                 data, target = data.to(self.device), target.to(self.device)
-                out = self.model(data)
                 prox = 0.0
                 if not overfit:
                     for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                        # loss += (torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2)*self.rho/2
                         prox += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
-                loss = self.criterion(out, target)*self.data_ratio + prox*self.rho/2
+                loss = self.criterion(self.model(data), target)*self.data_ratio + prox*self.rho/2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 

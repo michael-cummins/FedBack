@@ -13,11 +13,7 @@ setup(
     packages=find_packages(),
     url='https://github.com/michael-cummins/ADMM',
     install_requires=[
-        # 'numpy>=1.25.2',
-        # 'torch>=1.0',
-        # 'torchvision>=1.0',
-        # 'hydra-core',
-        # 'ray==1.13'
+  
     ],
     classifiers=[
         "Programming Language :: Python :: 3"
