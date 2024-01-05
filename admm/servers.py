@@ -24,9 +24,12 @@ class EventADMM:
         for t in self.pbar:
     
             # Primal Update
+            D = []
             for agent in self.agents:
-                agent.primal_update()
-          
+                d = agent.primal_update()
+                D.append(d)
+            delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {(sum(D)/len(D)):.8f}'
+           
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
@@ -34,7 +37,7 @@ class EventADMM:
                 avg_acc = sum(accuracies)/len(accuracies)
                 # for i, acc in enumerate(accuracies):
                 #     acc_descrption += f', A {i}: {acc:.2f}'
-                acc_descrption = f', Avg Acc: {avg_acc}'
+                acc_descrption = f', Avg Acc: {avg_acc:.4f}'
 
             # Residual update in the case of communication
             C = []
@@ -50,7 +53,7 @@ class EventADMM:
             
             # Analyse communication frequency
             freq = self.comm/((t+1)*self.N)
-            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption)
+            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description)
             
             # Dual update
             for agent in self.agents:

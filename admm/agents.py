@@ -63,6 +63,8 @@ class FedConsensus:
         else:
             self.broadcast = False
 
+        return d
+    
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
