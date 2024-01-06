@@ -4,6 +4,8 @@ import torch
 from admm.utils import *
 from torch.utils.data.dataloader import DataLoader
 
+from collections import OrderedDict
+
 class FedConsensus:
 
     """
@@ -78,6 +80,16 @@ class FedConsensus:
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
+    
+    def get_parameters(self):
+        """Return the parameters of the current net."""
+        return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
+
+    def set_parameters(self, parameters) -> None:
+        """Change the parameters of the model using the given ones."""
+        params_dict = zip(self.model.state_dict().keys(), parameters)
+        state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+        self.model.load_state_dict(state_dict, strict=True)
 
 class FedAVG:
 
