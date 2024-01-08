@@ -26,16 +26,17 @@ class EventADMM:
             # Primal Update
             D = []
             for agent in self.agents:
-                d = agent.primal_update()
+                d = agent.primal_update(overfit)
                 D.append(d)
             delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {(sum(D)/len(D)):.8f}'
+            overfit = False
            
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
                 accuracies = self.validate(loader=loader)
                 avg_acc = sum(accuracies)/len(accuracies)
-                acc_descrption = f', Min: {min(accuracies):.4f}, Max: {max(accuracies):.4f}, Avg Acc: {avg_acc:.4f}'
+                acc_descrption = f', Min: {min(accuracies):.8f}, Max: {max(accuracies):.8f}, Avg Acc: {avg_acc:.8f}'
 
             # Residual update in the case of communication
             C = []

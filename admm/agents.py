@@ -2,6 +2,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 from admm.utils import *
+from admm.models import FCNet
 from torch.utils.data.dataloader import DataLoader
 
 from collections import OrderedDict
@@ -12,16 +13,17 @@ class FedConsensus:
     Distributed event-based ADMM for federated learning
     """
     
-    def __init__(self, rho: int, N: int, delta: int, model: nn.Module, loss: nn.Module, 
+    def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
                  train_loader: DataLoader, epochs: int, device: str, 
                  lr: float, data_ratio: float) -> None:        
         self.primal_avg = None
         self.device = device
+        torch.manual_seed(78)
+        self.model = model.to(device)
         self.rho=rho
         self.N=N
         self.delta = delta
         self.lr = lr
-        self.model = model.to(self.device)
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
@@ -32,7 +34,7 @@ class FedConsensus:
         self.epochs = epochs
         self.data_ratio = data_ratio
         # Get number of params in model
-        self.total_params = sum(param.numel() for param in model.parameters())
+        self.total_params = sum(param.numel() for param in self.model.parameters())
 
     def primal_update(self, overfit=False) -> None:
 
