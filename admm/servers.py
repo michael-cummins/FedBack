@@ -1,10 +1,12 @@
 import torch
 from typing import List
-from admm.utils import sum_params, add_params
+from admm.utils import sum_params, add_params, average_params
 from admm import agents
 from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
+from admm.models import FCNet
+from collections import OrderedDict
 
 class EventADMM:
 
@@ -14,29 +16,35 @@ class EventADMM:
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
+        self.device = 'cpu'
         
         # For experiment purposes
         self.rates = []
         self.val_accs = []
+        self.global_model = FCNet(in_channels=784, hidden1=200, hidden2=None, out_channels=10).to(self.device)
 
     def spin(self, loader=None) -> None:
-        overfit = False
         for t in self.pbar:
     
             # Primal Update
             D = []
-            for agent in self.agents:
-                d = agent.primal_update(overfit)
+            for i, agent in enumerate(self.agents):
+                d = agent.primal_update()
                 D.append(d)
             delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {(sum(D)/len(D)):.8f}'
-            overfit = False
-           
+
+            # Get gloabl variable Z and copy to a network for validation
+            global_params = average_params([agent.get_parameters(agent.model) for agent in self.agents])
+            self.global_model = self.set_parameters(global_params, self.global_model)
+
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
+                global_acc = self.validate_global(loader=loader)
+                acc_descrption += f', Global Acc = {global_acc:.4f}'
                 accuracies = self.validate(loader=loader)
                 avg_acc = sum(accuracies)/len(accuracies)
-                acc_descrption = f', Min: {min(accuracies):.8f}, Max: {max(accuracies):.8f}, Avg Acc: {avg_acc:.8f}'
+                acc_descrption += f', Min: {min(accuracies):.4f}, Max: {max(accuracies):.4f}, Avg Acc: {avg_acc:.4f}'
 
             # Residual update in the case of communication
             C = []
@@ -60,10 +68,28 @@ class EventADMM:
 
             # For experiment purposes
             self.rates.append(freq)
-            self.val_accs.append(sum(accuracies)/len(accuracies))
+            # self.val_accs.append(sum(accuracies)/len(accuracies))
+            self.val_accs.append(global_acc)
 
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)
+    
+    def set_parameters(self, parameters, model: torch.nn.Module) -> None:
+        """Change the parameters of the model using the given ones."""
+        params_dict = zip(model.state_dict().keys(), parameters)
+        state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+        model.load_state_dict(state_dict, strict=True)
+        return model
+    
+    def validate_global(self, loader: DataLoader) -> float:
+        wrong_count = 0
+        total = len(loader.dataset)
+        for data, target in loader:
+            data, target = data.to(self.device), target.to(self.device)
+            out = torch.argmax(self.global_model(data), dim=1)
+            wrong_count += torch.count_nonzero(out-target)
+        global_acc = 1 - wrong_count/total
+        return global_acc
 
     def validate(self, loader: DataLoader) -> List[float]:
         total = 0

@@ -18,7 +18,6 @@ class FedConsensus:
                  lr: float, data_ratio: float) -> None:        
         self.primal_avg = None
         self.device = device
-        torch.manual_seed(78)
         self.model = model.to(device)
         self.rho=rho
         self.N=N
@@ -83,9 +82,9 @@ class FedConsensus:
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
     
-    def get_parameters(self):
+    def get_parameters(self, model):
         """Return the parameters of the current net."""
-        return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
+        return [val.cpu().numpy() for _, val in model.state_dict().items()]
 
     def set_parameters(self, parameters) -> None:
         """Change the parameters of the model using the given ones."""
