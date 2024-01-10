@@ -7,7 +7,7 @@ from torch.utils.data.dataloader import DataLoader
 import numpy as np
 from admm.models import FCNet
 from collections import OrderedDict
-
+import statistics
 class EventADMM:
 
     def __init__(self, clients: List[agents.FedConsensus], t_max: int) -> None:
@@ -31,7 +31,7 @@ class EventADMM:
             for i, agent in enumerate(self.agents):
                 d = agent.primal_update()
                 D.append(d)
-            delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {(sum(D)/len(D)):.8f}'
+            delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {statistics.median(D):.8f}'
 
             # Residual update in the case of communication
             C = []

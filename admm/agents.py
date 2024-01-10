@@ -23,6 +23,7 @@ class FedConsensus:
         self.rho=rho
         self.N=N
         self.delta = delta
+        self.broadcast = False
         self.lr = lr
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
@@ -33,6 +34,7 @@ class FedConsensus:
         self.epochs = epochs
         self.data_ratio = data_ratio
         self.dell = 0
+        self.send = False
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
 
@@ -42,26 +44,30 @@ class FedConsensus:
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 if i == 20: break
+                self.model.zero_grad()
                 data, target = data.to(self.device), target.to(self.device)
                 prox = 0.0
                 if not overfit:
                     for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                         prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                loss = self.criterion(self.model(data), target) + prox*self.rho/2
-                self.optimizer.zero_grad()
-                loss.backward()
+                model_loss = self.criterion(self.model(data), target) 
+                prox = prox*self.rho/2
+                model_loss.backward()
+                prox.backward()
                 self.optimizer.step() 
         
         delta = 0
         # check for how much paramters changed
-        for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
-            delta += torch.norm(old_param.data-updated_param.data, p='fro').item()**2
+        for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):
+            with torch.no_grad():
+                delta += torch.norm(old_param.data-updated_param.data-dual_param.data,p='fro').item()**2
         d = np.sqrt(delta)
 
         # If "send on delta" then update residual and broadcast to other agents
         if d >= self.delta:      
             self.update_residual()
             self.last_communicated = self.copy_params(self.model.parameters())
+            add_params(self.last_communicated, self.lam)
             self.broadcast = True
         else:
             self.broadcast = False
@@ -71,13 +77,12 @@ class FedConsensus:
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
-        # scale_params(primal_copy, a=self.lr)
-        # scale_params(primal_copy, a=self.rho)
         add_params(self.lam, primal_copy)
 
     def update_residual(self):
         # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
+        add_params(self.residual, self.lam)
         # for param, dual in zip(self.residual, self.lam):
         #     param = param - dual/self.rho
         
