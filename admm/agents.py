@@ -43,7 +43,7 @@ class FedConsensus:
         # Solve argmin problem
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
-                if i == 20: break
+                if i==20: break
                 self.model.zero_grad()
                 data, target = data.to(self.device), target.to(self.device)
                 prox = 0.0
