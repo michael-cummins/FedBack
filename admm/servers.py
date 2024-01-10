@@ -24,7 +24,7 @@ class EventADMM:
         self.global_model = FCNet(in_channels=784, hidden1=200, hidden2=None, out_channels=10).to(self.device)
 
     def spin(self, loader=None) -> None:
-        for t in self.pbar:
+        for _ in self.pbar:
     
             # Primal Update
             D = []
@@ -92,7 +92,7 @@ class EventADMM:
         global_acc = 1 - wrong_count/total
         return global_acc
 
-    def validate(self, loader: DataLoader) -> List[float]:
+    def validate_agents(self, loader: DataLoader) -> List[float]:
         total = 0
         wrong_count = np.zeros(self.N)
         for data, target in loader:

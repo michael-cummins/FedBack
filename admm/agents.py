@@ -38,26 +38,22 @@ class FedConsensus:
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
 
-    def primal_update(self, overfit=False) -> None:
+    def primal_update(self) -> None:
         
         # Solve argmin problem
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
-                if i==20: break
-                self.model.zero_grad()
                 data, target = data.to(self.device), target.to(self.device)
                 prox = 0.0
-                if not overfit:
-                    for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                        prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                model_loss = self.criterion(self.model(data), target) 
-                prox = prox*self.rho/2
-                model_loss.backward()
-                prox.backward()
+                for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
+                    prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
+                loss = self.criterion(self.model(data), target) + prox*self.rho/2
+                self.optimizer.zero_grad()
+                loss.backward()
                 self.optimizer.step() 
         
-        delta = 0
         # check for how much paramters changed
+        delta = 0
         for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):
             with torch.no_grad():
                 delta += torch.norm(old_param.data-updated_param.data-dual_param.data,p='fro').item()**2
