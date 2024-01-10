@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class Cifar10CnnModel(nn.Module):
+class Cifar10CNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
