@@ -33,19 +33,6 @@ class EventADMM:
                 D.append(d)
             delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {(sum(D)/len(D)):.8f}'
 
-            # Get gloabl variable Z and copy to a network for validation
-            global_params = average_params([agent.get_parameters(agent.model) for agent in self.agents])
-            self.global_model = self.set_parameters(global_params, self.global_model)
-
-            # Test updated params on validation set
-            acc_descrption = ''
-            if loader is not None:
-                global_acc = self.validate_global(loader=loader)
-                acc_descrption += f', Global Acc = {global_acc:.4f}'
-                accuracies = self.validate(loader=loader)
-                avg_acc = sum(accuracies)/len(accuracies)
-                acc_descrption += f', Min: {min(accuracies):.4f}, Max: {max(accuracies):.4f}, Avg Acc: {avg_acc:.4f}'
-
             # Residual update in the case of communication
             C = []
             for agent in self.agents:
@@ -58,18 +45,32 @@ class EventADMM:
                 for agent in self.agents:
                     add_params(agent.primal_avg, residuals)
             
-            # Analyse communication frequency
-            freq = self.comm/((t+1)*self.N)
-            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description)
-            
             # Dual update
             for agent in self.agents:
                 agent.dual_update()
 
+            # Test updated params on validation set
+            acc_descrption = ''
+            if loader is not None:
+                # Get gloabl variable Z and copy to a network for validation
+                with torch.no_grad():
+                    global_params = [param.cpu().numpy() for param in self.agents[0].primal_avg]
+                    self.global_model = self.set_parameters(global_params, self.global_model)
+                    global_acc = self.validate_global(loader=loader)
+                    acc_descrption += f', Global Acc = {global_acc:.4f}'
+                    # accuracies = self.validate(loader=loader)
+                    # avg_acc = sum(accuracies)/len(accuracies)
+                    # acc_descrption += f', Min: {min(accuracies):.4f}, Max: {max(accuracies):.4f}, Avg Acc: {avg_acc:.4f}'
+
+            # Analyse communication frequency
+            freq = self.comm/(self.N)
+            self.comm = 0
+            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description)
+
             # For experiment purposes
             self.rates.append(freq)
-            # self.val_accs.append(sum(accuracies)/len(accuracies))
             self.val_accs.append(global_acc)
+
 
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)

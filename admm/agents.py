@@ -16,6 +16,7 @@ class FedConsensus:
     def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
                  train_loader: DataLoader, epochs: int, device: str, 
                  lr: float, data_ratio: float) -> None:        
+        
         self.primal_avg = None
         self.device = device
         self.model = model.to(device)
@@ -27,34 +28,35 @@ class FedConsensus:
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
-        # self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, weight_decay=0.001)
         self.train_loader = train_loader
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
+        self.dell = 0
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
 
     def primal_update(self, overfit=False) -> None:
-
+        
         # Solve argmin problem
         for _ in range(self.epochs):
-            for data, target in self.train_loader:
+            for i, (data, target) in enumerate(self.train_loader):
+                if i == 20: break
                 data, target = data.to(self.device), target.to(self.device)
                 prox = 0.0
                 if not overfit:
                     for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
-                        prox += torch.norm(param - avg.data + dual_param.data/self.rho, p='fro')**2
-                loss = self.criterion(self.model(data), target)*self.data_ratio + prox*self.rho/2
+                        prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
+                loss = self.criterion(self.model(data), target) + prox*self.rho/2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
-
-        # check for how much paramters changed
+        
         delta = 0
+        # check for how much paramters changed
         for old_param, updated_param in zip(self.last_communicated, self.model.parameters()):
             delta += torch.norm(old_param.data-updated_param.data, p='fro').item()**2
-        d = delta/self.total_params
+        d = np.sqrt(delta)
 
         # If "send on delta" then update residual and broadcast to other agents
         if d >= self.delta:      
@@ -70,11 +72,16 @@ class FedConsensus:
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
         # scale_params(primal_copy, a=self.lr)
-        scale_params(primal_copy, a=self.rho)
+        # scale_params(primal_copy, a=self.rho)
         add_params(self.lam, primal_copy)
 
     def update_residual(self):
+        # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
+        # for param, dual in zip(self.residual, self.lam):
+        #     param = param - dual/self.rho
+        
+        # Compute residual
         subtract_params(self.residual, self.last_communicated)
         scale_params(self.residual, a=1/self.N)
 
