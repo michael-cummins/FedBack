@@ -19,7 +19,8 @@ if torch.cuda.is_available():
     device = 'cuda'
     print('GPU available')
 else:
-    raise Exception('GPU not available')
+    # raise Exception('GPU not available')
+    device = 'mps'
 
 if __name__ == '__main__':
 
@@ -32,11 +33,11 @@ if __name__ == '__main__':
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
     cifar_trainset = datasets.CIFAR10(
-        root='./data/cifar10', train=True,
+        root='../data/cifar10', train=True,
         download=True, transform=cifar_transform
     )
     cifar_testset = datasets.CIFAR10(
-        root='./data/cifar10', train=False,
+        root='../data/cifar10', train=False,
         download=True, transform=cifar_transform
     )
 
@@ -52,7 +53,7 @@ if __name__ == '__main__':
         labels_per_partition=1
     )
 
-    batch_size = 10
+    batch_size = 128
     train_loaders = [DataLoader(dataset, batch_size=batch_size, shuffle=True) for dataset in trainsets]
     test_loader = DataLoader(cifar_testset, batch_size=100, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=100, shuffle=True)
@@ -116,7 +117,7 @@ if __name__ == '__main__':
         Run the consensus algorithm
         """
 
-        server = EventADMM(clients=agents, t_max=t_max, model=Cifar10CNN())
+        server = EventADMM(clients=agents, t_max=t_max, model=Cifar10CNN(), device=device)
         server.spin(loader=val_loader)
         final = agents[0].last_communicated
         

@@ -10,13 +10,13 @@ from collections import OrderedDict
 import statistics
 class EventADMM:
 
-    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module) -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: 'str') -> None:
         self.agents = clients
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
-        self.device = 'cpu'
+        self.device = device
         
         # For experiment purposes
         self.rates = []
@@ -58,9 +58,6 @@ class EventADMM:
                     self.global_model = self.set_parameters(global_params, self.global_model)
                     global_acc = self.validate_global(loader=loader)
                     acc_descrption += f', Global Acc = {global_acc:.4f}'
-                    # accuracies = self.validate(loader=loader)
-                    # avg_acc = sum(accuracies)/len(accuracies)
-                    # acc_descrption += f', Min: {min(accuracies):.4f}, Max: {max(accuracies):.4f}, Avg Acc: {avg_acc:.4f}'
 
             # Analyse communication frequency
             freq = self.comm/(self.N)
@@ -86,7 +83,7 @@ class EventADMM:
         wrong_count = 0
         total = len(loader.dataset)
         for data, target in loader:
-            data, target = data.to(self.device), target.int().to(self.device)
+            data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
             out = torch.argmax(self.global_model(data), dim=1)
             wrong_count += torch.count_nonzero(out-target)
         global_acc = 1 - wrong_count/total
@@ -99,7 +96,7 @@ class EventADMM:
             total += target.shape[0] 
             with torch.no_grad():
                 for i, agent in enumerate(self.agents):
-                    data, target = data.to(agent.device), target.int().to(agent.device)
+                    data, target = data.to(agent.device), target.type(torch.LongTensor).to(agent.device)
                     out = torch.argmax(agent.model(data), dim=1)
                     wrong_count[i] += torch.count_nonzero(out-target)
         model_accs = [1 - wrong/total for wrong in wrong_count]

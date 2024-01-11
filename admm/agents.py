@@ -43,11 +43,11 @@ class FedConsensus:
         # Solve argmin problem
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
-                data, target = data.to(self.device), target.to(self.device)
+                data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
                 prox = 0.0
                 for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                     prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                loss = self.criterion(self.model(data), target.int()) + prox*self.rho/2
+                loss = self.criterion(self.model(data), target) + prox*self.rho/2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
@@ -79,10 +79,6 @@ class FedConsensus:
         # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
-        # for param, dual in zip(self.residual, self.lam):
-        #     param = param - dual/self.rho
-        
-        # Compute residual
         subtract_params(self.residual, self.last_communicated)
         scale_params(self.residual, a=1/self.N)
 
