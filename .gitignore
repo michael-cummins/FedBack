@@ -2,6 +2,7 @@ __pycache__
 *.py[cod]
 *$py.class
 
+experiments/cluster/
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 
