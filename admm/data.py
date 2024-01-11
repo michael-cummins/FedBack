@@ -74,8 +74,6 @@ def partition_data(
         A list of dataset for each client and a single dataset to be use for testing
         the model.
     """
-    if trainset is None:
-        trainset = _download_data()
 
     if balance:
         trainset = _balance_classes(trainset, seed)
@@ -144,6 +142,8 @@ def _balance_classes(
     """
     class_counts = np.bincount(trainset.targets)
     smallest = np.min(class_counts)
+    if type(trainset.targets) is list:
+        trainset.targets = torch.Tensor(trainset.targets)
     idxs = trainset.targets.argsort()
     tmp = [Subset(trainset, idxs[: int(smallest)])]
     tmp_targets = [trainset.targets[idxs[: int(smallest)]]]
