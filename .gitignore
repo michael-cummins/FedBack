@@ -2,7 +2,9 @@ __pycache__
 *.py[cod]
 *$py.class
 
-experiments/cluster/
+experiments/cluster/*.err
+experiments/cluster/*.out
+experiments/cluster/data/
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 
