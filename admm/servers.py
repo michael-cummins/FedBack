@@ -10,7 +10,7 @@ from collections import OrderedDict
 import statistics
 class EventADMM:
 
-    def __init__(self, clients: List[agents.FedConsensus], t_max: int) -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module) -> None:
         self.agents = clients
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
@@ -21,7 +21,7 @@ class EventADMM:
         # For experiment purposes
         self.rates = []
         self.val_accs = []
-        self.global_model = FCNet(in_channels=784, hidden1=200, hidden2=None, out_channels=10).to(self.device)
+        self.global_model = model
 
     def spin(self, loader=None) -> None:
         for _ in self.pbar:
@@ -86,7 +86,7 @@ class EventADMM:
         wrong_count = 0
         total = len(loader.dataset)
         for data, target in loader:
-            data, target = data.to(self.device), target.to(self.device)
+            data, target = data.to(self.device), target.int().to(self.device)
             out = torch.argmax(self.global_model(data), dim=1)
             wrong_count += torch.count_nonzero(out-target)
         global_acc = 1 - wrong_count/total
@@ -99,7 +99,7 @@ class EventADMM:
             total += target.shape[0] 
             with torch.no_grad():
                 for i, agent in enumerate(self.agents):
-                    data, target = data.to(agent.device), target.to(agent.device)
+                    data, target = data.to(agent.device), target.int().to(agent.device)
                     out = torch.argmax(agent.model(data), dim=1)
                     wrong_count[i] += torch.count_nonzero(out-target)
         model_accs = [1 - wrong/total for wrong in wrong_count]

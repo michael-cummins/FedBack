@@ -1,8 +1,9 @@
-executable = cifar.py
+executable = /usr/bin/python3
+arguments = cifar_federated.py
 error = cifar.err
 output = cifar.out
 log = cifar.log
-request_gpus=1
 request_cpus=1
-request_memory=4096
+request_gpus=1
+request_memory=8096
 queue

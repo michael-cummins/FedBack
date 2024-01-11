@@ -47,7 +47,7 @@ class FedConsensus:
                 prox = 0.0
                 for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                     prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                loss = self.criterion(self.model(data), target) + prox*self.rho/2
+                loss = self.criterion(self.model(data), target.int()) + prox*self.rho/2
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
