@@ -19,8 +19,8 @@ if torch.cuda.is_available():
     device = 'cuda'
     print('GPU available')
 else:
-    # raise Exception('GPU not available')
-    device = 'mps'
+    raise Exception('GPU not available')
+    # device = 'cpu'
 
 if __name__ == '__main__':
 
@@ -33,25 +33,44 @@ if __name__ == '__main__':
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
     cifar_trainset = datasets.CIFAR10(
-        root='../data/cifar10', train=True,
+        root='./data/cifar10', train=True,
         download=True, transform=cifar_transform
     )
     cifar_testset = datasets.CIFAR10(
-        root='../data/cifar10', train=False,
+        root='./data/cifar10', train=False,
         download=True, transform=cifar_transform
     )
 
     train_dataset, val_dataset, _ = split_dataset(dataset=cifar_trainset, train_ratio=0.8, val_ratio=0.2)
 
     trainsets = partition_data(
-        num_clients=100,
+        num_clients=10,
         iid=False,
         balance=True,
         power_law=False,
         seed=42,
         trainset=train_dataset.dataset,
-        labels_per_partition=1
+        labels_per_partition=2
     )
+
+    for i, dataset in enumerate(trainsets):
+        labels = np.zeros(10)
+        dummy_loader = DataLoader(dataset, batch_size=1)
+        for data, target in dummy_loader:
+            labels[int(target.item())] += 1
+        print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(val_dataset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[int(target.item())] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(cifar_testset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[int(target.item())] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
     batch_size = 128
     train_loaders = [DataLoader(dataset, batch_size=batch_size, shuffle=True) for dataset in trainsets]
@@ -65,7 +84,7 @@ if __name__ == '__main__':
     deltas = [0]
     lr = 0.001
     rho = 0.01
-    t_max = 100
+    t_max = 25
 
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
@@ -86,7 +105,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=1,
+                    epochs=2,
                     data_ratio=1,
                     device=device,
                     lr=lr
@@ -96,22 +115,6 @@ if __name__ == '__main__':
         # Broadcast average to all agents and check if equal
         for agent in agents:
             agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
-        
-        # Check that all agents start with same params
-        for agent1 in agents:
-            for agent2 in agents:
-                for param1, param2 in zip(agent1.model.parameters(), agent2.model.parameters()):
-                    if not torch.equal(param1, param2): raise ValueError("Initial params aren't equal")
-        
-        # Check to make sure they all start with the same average
-        for agent1 in agents:
-            for agent2 in agents:
-                for param1, param2 in zip(agent1.primal_avg, agent2.primal_avg):
-                    param1, param2 = torch.Tensor(param1), torch.Tensor(param2)
-                    if not torch.equal(param1, param2): raise ValueError("Averaged params aren't equal")
-                    if torch.equal(param1, torch.zeros(param1.shape).to(agent1.device)) or torch.equal(param2, torch.zeros(param1.shape).to(agent2.device)):
-                        raise ValueError('Averaged Params are zero')
-        print('Parameter check complete!')
 
         """
         Run the consensus algorithm
@@ -128,7 +131,7 @@ if __name__ == '__main__':
         acc = server.validate_global(loader=test_loader)
         print(f'Load for delta {delta} = {load}, Test accuracy = {acc}')
         loads.append(load)
-        test_accs.append(acc)
+        test_accs.append(acc.cpu().numpy())
 
     """
     Plot Results
@@ -138,7 +141,7 @@ if __name__ == '__main__':
     
     for acc, delta in zip(acc_per_delta, deltas):
         plt.plot(T, acc, label=f'delta={delta:.2f}')
-    plt.legend(loc='center right', bbox_to_anchor=(1.4, 0.5))
+    plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - Learning Rate = 0.001')
@@ -146,7 +149,7 @@ if __name__ == '__main__':
 
     for rate, delta in zip(rate_per_delta, deltas):
         plt.plot(T, rate, label=f'rate={delta:.2f}')
-    plt.legend(loc='center right', bbox_to_anchor=(1.4, 0.5))
+    plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')

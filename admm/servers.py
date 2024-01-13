@@ -100,6 +100,7 @@ class EventADMM(ServerBase):
         # For experiment purposes
         self.rates = []
         self.val_accs = []
+        self.global_model = model
 
     def spin(self, loader=None) -> None:
         for _ in self.pbar:
@@ -144,7 +145,7 @@ class EventADMM(ServerBase):
 
             # For experiment purposes
             self.rates.append(freq)
-            self.val_accs.append(global_acc)
+            self.val_accs.append(global_acc.detach().cpu().numpy())
 
 
         self.rates = np.array(self.rates)
