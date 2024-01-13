@@ -2,7 +2,6 @@ import numpy as np
 import torch.nn as nn
 import torch
 from admm.utils import *
-from admm.models import FCNet
 from torch.utils.data.dataloader import DataLoader
 
 from collections import OrderedDict
@@ -37,6 +36,7 @@ class FedConsensus:
         self.send = False
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
+        self.deltas = [self.delta*param.numel()/self.total_params for param in self.model.parameters()]
 
     def primal_update(self) -> None:
         
@@ -53,11 +53,11 @@ class FedConsensus:
                 self.optimizer.step() 
         
         # check for how much paramters changed
-        delta = 0
+        d = 0
         for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):
             with torch.no_grad():
-                delta += torch.norm(old_param.data-updated_param.data-dual_param.data,p='fro').item()**2
-        d = np.sqrt(delta)
+                d += torch.norm(old_param.data-updated_param.data-dual_param.data,p='fro').item()**2
+        d = np.sqrt(d)
 
         # If "send on delta" then update residual and broadcast to other agents
         if d >= self.delta:      
@@ -80,15 +80,45 @@ class FedConsensus:
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated)
-        scale_params(self.residual, a=1/self.N)
+        scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
+
+class Fed:
+
+    """
+    Distributed event-based ADMM for federated learning
+    """
     
-    def get_parameters(self, model):
-        """Return the parameters of the current net."""
-        return [val.cpu().numpy() for _, val in model.state_dict().items()]
+    def __init__(self, loss: nn.Module, model: nn.Module,
+                 train_loader: DataLoader, epochs: int, device: str, lr: float) -> None:        
+        
+        self.device = device
+        self.model = model.to(device)
+        self.lr = lr
+        self.num_samples = len(train_loader.dataset)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.train_loader = train_loader
+        self.criterion = loss
+        self.epochs = epochs
+
+    def primal_update(self, global_params) -> None:
+        
+        self.set_parameters(global_params)
+        # Solve argmin problem
+        for _ in range(self.epochs):
+            for i, (data, target) in enumerate(self.train_loader):
+                data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
+                loss = self.criterion(self.model(data), target)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step() 
+
+    def copy_params(self, params):
+        copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
+        return copy
 
     def set_parameters(self, parameters) -> None:
         """Change the parameters of the model using the given ones."""
