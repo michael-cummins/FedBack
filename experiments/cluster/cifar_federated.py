@@ -52,7 +52,7 @@ if __name__ == '__main__':
         trainset=train_dataset.dataset,
         labels_per_partition=2
     )
-
+    
     for i, dataset in enumerate(trainsets):
         labels = np.zeros(10)
         dummy_loader = DataLoader(dataset, batch_size=1)
@@ -72,10 +72,12 @@ if __name__ == '__main__':
         labels[int(target.item())] += 1
     print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
-    batch_size = 128
+    # 2 agents, batch 256, epochs 1 -> 100 steps per agent = 200 steps - 80% test acc
+    # 10 agents, batch 50, epochs 1 -> 100 steps per agent = 1000 steps - 68% test acc
+    batch_size = 50
     train_loaders = [DataLoader(dataset, batch_size=batch_size, shuffle=True) for dataset in trainsets]
-    test_loader = DataLoader(cifar_testset, batch_size=100, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=100, shuffle=True)
+    test_loader = DataLoader(cifar_testset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     """
     Setting up Consensus Problem
@@ -84,7 +86,7 @@ if __name__ == '__main__':
     deltas = [0]
     lr = 0.001
     rho = 0.01
-    t_max = 25
+    t_max = 100
 
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
@@ -105,7 +107,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=2,
+                    epochs=1,
                     data_ratio=1,
                     device=device,
                     lr=lr
@@ -115,11 +117,14 @@ if __name__ == '__main__':
         # Broadcast average to all agents and check if equal
         for agent in agents:
             agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
+            print(f'Agents device = {next(agent.model.parameters()).device}')
+        if device == 'cuda': torch.cuda.synchronize()
 
         """
         Run the consensus algorithm
         """
 
+        torch.manual_seed(78)
         server = EventADMM(clients=agents, t_max=t_max, model=Cifar10CNN(), device=device)
         server.spin(loader=val_loader)
         final = agents[0].last_communicated
@@ -144,7 +149,7 @@ if __name__ == '__main__':
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
-    plt.title('Validation Set Accuracy - Fully Connected - Learning Rate = 0.001')
+    plt.title('Validation Set Accuracy - Fully Connected - niid')
     plt.savefig('./images/cifar/fc_val.png')
 
     for rate, delta in zip(rate_per_delta, deltas):
@@ -162,7 +167,7 @@ if __name__ == '__main__':
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
     plt.savefig('./images/cifar/fc_test_load.png')
-
+    
     # Save plotting data
     np.save(file='figure_data/cifar/rates_per_delta', arr=rate_per_delta)
     np.save(file='figure_data/cifar/accs_per_delta', arr=acc_per_delta)

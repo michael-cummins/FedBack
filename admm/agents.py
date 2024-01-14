@@ -80,7 +80,7 @@ class FedConsensus:
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated)
-        scale_params(self.residual, a=1/self.N)
+        scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]

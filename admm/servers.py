@@ -8,6 +8,7 @@ import numpy as np
 from admm.models import FCNet
 from collections import OrderedDict
 import statistics
+
 class EventADMM:
 
     def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: 'str') -> None:
@@ -32,6 +33,7 @@ class EventADMM:
                 d = agent.primal_update()
                 D.append(d)
             delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {statistics.median(D):.8f}'
+            if self.device == 'cuda': torch.cuda.synchronize()
 
             # Residual update in the case of communication
             C = []
@@ -44,11 +46,13 @@ class EventADMM:
                 residuals = [x for x in sum_params(C)]
                 for agent in self.agents:
                     add_params(agent.primal_avg, residuals)
+            if self.device == 'cuda': torch.cuda.synchronize()
             
             # Dual update
             for agent in self.agents:
                 agent.dual_update()
-
+            if self.device == 'cuda': torch.cuda.synchronize()
+            
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
