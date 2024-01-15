@@ -8,7 +8,14 @@ import numpy as np
 from admm.models import FCNet
 from collections import OrderedDict
 import statistics
-
+import subprocess
+from concurrent import futures
+import re
+import os
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.multiprocessing import Process
+from torch.multiprocessing import set_start_method
+    
 class EventADMM:
 
     def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: 'str') -> None:
@@ -26,15 +33,16 @@ class EventADMM:
 
     def spin(self, loader=None) -> None:
         for _ in self.pbar:
-    
+            
             # Primal Update
+
             D = []
-            for i, agent in enumerate(self.agents):
+            for agent in self.agents:
                 d = agent.primal_update()
                 D.append(d)
-            delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, avg: {statistics.median(D):.8f}'
+                delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, Median: {statistics.median(D):.8f}'
             if self.device == 'cuda': torch.cuda.synchronize()
-
+            
             # Residual update in the case of communication
             C = []
             for agent in self.agents:
@@ -62,11 +70,21 @@ class EventADMM:
                     self.global_model = self.set_parameters(global_params, self.global_model)
                     global_acc = self.validate_global(loader=loader)
                     acc_descrption += f', Global Acc = {global_acc:.4f}'
-
+            if self.device == 'cuda': torch.cuda.synchronize()
+            
+            if self.device == 'cuda':
+                command = 'nvidia-smi'
+                p = subprocess.check_output(command)
+                ram_using = re.findall(r'\b\d+MiB+ /', str(p))[0][:-5]
+                # ram_total = re.findall(r'/  \b\d+MiB', str(p))[0][3:-3]
+                # ram_percent = int(ram_using) / int(ram_total)
+                GPU_desctiption = f', ram = {ram_using}'
+            else: GPU_desctiption = ''
+            
             # Analyse communication frequency
             freq = self.comm/(self.N)
             self.comm = 0
-            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description)
+            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description + GPU_desctiption)
 
             # For experiment purposes
             self.rates.append(freq)

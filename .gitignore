@@ -5,6 +5,7 @@ __pycache__
 experiments/cluster/*.err
 experiments/cluster/*.out
 experiments/cluster/data/
+experiments/cluster/.data/
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 

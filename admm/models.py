@@ -1,6 +1,30 @@
 import torch
 import torch.nn as nn
 
+class Model2(nn.Module):
+    def __init__(self):
+        super(Model2, self).__init__()
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=5, padding=2, bias=True),
+            nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=5, padding=2, bias=True),
+            nn.MaxPool2d((2,2)),
+        )
+        self.linear = nn.Sequential(
+            nn.Linear(4096, 256),
+            nn.ReLU(),
+            nn.Linear(256, 10),
+            nn.Softmax()
+        )
+
+    @torch.autocast(device_type="cuda")   
+    def forward(self, x):
+        x = self.conv(x)
+        x = x.reshape(x.shape[0], -1)
+        x = self.linear(x)
+        return x
+    
 class Cifar10CNN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -29,7 +53,8 @@ class Cifar10CNN(nn.Module):
             nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Linear(512, 10))
-        
+    
+    @torch.autocast(device_type="cuda")
     def forward(self, xb):
         return self.network(xb)
 
