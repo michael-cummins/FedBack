@@ -1,8 +1,8 @@
 executable = /usr/bin/python3
 arguments = cifar_federated.py
-error = cifar.err
-output = cifar.out
-log = cifar.log
+error = cifar_sweep.err
+output = cifar_sweep.out
+log = cifar_sweep.log
 request_cpus=8
 request_gpus=1
 request_memory=16096

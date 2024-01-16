@@ -30,7 +30,7 @@ class FedConsensus:
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
@@ -82,7 +82,7 @@ class FedConsensus:
         add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated)
         # scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
-        scale_params(self.residual, a=1/self.N)
+        scale_params(self.residual, a=1/self.data_ratio)
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]

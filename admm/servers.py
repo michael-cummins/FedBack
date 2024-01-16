@@ -1,6 +1,6 @@
 import torch
 from typing import List
-from admm.utils import sum_params, add_params, average_params
+from admm.utils import sum_params, add_params, average_params, scale_params
 from admm import agents
 from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
@@ -18,13 +18,14 @@ from torch.multiprocessing import set_start_method
     
 class EventADMM:
 
-    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: 'str') -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: str, global_weight: float) -> None:
         self.agents = clients
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
         self.device = device
+        self.global_weight = global_weight
         
         # For experiment purposes
         self.rates = []
@@ -51,9 +52,10 @@ class EventADMM:
                     C.append(agent.residual)
             if C:
                 # If communicaiton set isn't empty
-                residuals = [x for x in sum_params(C)]
+                residuals = [x*self.global_weight for x in sum_params(C)]
                 for agent in self.agents:
                     add_params(agent.primal_avg, residuals)
+                    # scale_params(agent.primal_avg, self.global_weight)
             if self.device == 'cuda': torch.cuda.synchronize()
             
             # Dual update
@@ -67,6 +69,8 @@ class EventADMM:
                 # Get gloabl variable Z and copy to a network for validation
                 with torch.no_grad():
                     global_params = [param.cpu().numpy() for param in self.agents[0].primal_avg]
+                    # global_params = average_params([agent.model.parameters() for agent in self.agents])
+                    # global_params = [param.cpu().numpy() for param in global_params]
                     self.global_model = self.set_parameters(global_params, self.global_model)
                     global_acc = self.validate_global(loader=loader)
                     acc_descrption += f', Global Acc = {global_acc:.4f}'

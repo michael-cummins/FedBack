@@ -55,7 +55,9 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
-
+    num_clients=10
+    batch_size=64
+    torch.manual_seed(78)
     (
         _,
         _,
@@ -64,7 +66,7 @@ if __name__ == '__main__':
         net_dataidx_map,
     ) = partition_data(
         partition='noniid',
-        num_clients=10,
+        num_clients=num_clients,
         beta=0.5,
     )
     _, test_global_dl, _, _ = get_dataloader(
@@ -73,9 +75,9 @@ if __name__ == '__main__':
         test_bs=32,
     )
     trainloaders = []
-    for idx in range(10):
+    for idx in range(num_clients):
         train_dl, _, _, _ = get_dataloader(
-            './data/cifar10', 64, 32, net_dataidx_map[idx]
+            './data/cifar10', batch_size, 32, net_dataidx_map[idx]
         )
 
         trainloaders.append(train_dl)
@@ -112,35 +114,40 @@ if __name__ == '__main__':
     Setting up Consensus Problem
     """
 
-    deltas = [0, 0]
-    lr = 0.001
+    deltas = list(range(0,28,4))
+    lr = 0.01
     t_max = 100
-    rho = 0.01
+    rho = 0.01/num_clients
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
     loads = []
     test_accs = []
+    gamma = 1e-4
     
+    total_samples = sum([len(loader.dataset) for loader in trainloaders])
     for i, delta in enumerate(deltas):
         agents = []
-        for loader in trainloaders:
+        for j, loader in enumerate(trainloaders):
+            data_ratio = len(loader.dataset)/total_samples
+            print(f'agent {j} data ratio: {data_ratio}')
             torch.manual_seed(78)
             model = Cifar10CNN()
             agents.append(
                 FedConsensus(
                     N=len(trainloaders),
                     delta=delta,
-                    rho=rho,
+                    rho=rho/data_ratio,
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
                     epochs=5,
-                    data_ratio=1,
+                    data_ratio=data_ratio,
                     device=device,
                     lr=lr
                 ) 
             )
 
+        global_weight = rho/(rho*sum([1/agent.data_ratio for agent in agents]) - 2*gamma)
         # Broadcast average to all agents and check if equal
         for agent in agents:
             agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
@@ -153,7 +160,7 @@ if __name__ == '__main__':
 
         torch.manual_seed(78)
         global_model = Cifar10CNN()
-        server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
+        server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device, global_weight=global_weight)
         print('Server spinning')
         server.spin(loader=test_global_dl)
         
@@ -172,32 +179,36 @@ if __name__ == '__main__':
 
     T = range(t_max)
     
-    for acc, rho in zip(acc_per_delta, deltas):
-        plt.plot(T, acc, label=f'rho={rho:.2f}')
+    for acc_per, delta in zip(acc_per_delta, deltas):
+        plt.plot(T, acc_per, label=f'rho={delta}:.2f')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
     plt.savefig('./images/cifar/fc_val.png')
 
-    # for rate, rho in zip(rate_per_delta, rhos):
-    #     plt.plot(T, rate, label=f'rate={rho:.2f}')
-    # plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
-    # plt.xlabel('Time Step')
-    # plt.ylabel('Rate')
-    # plt.title('Communication Rate - Fully Connected')
-    # plt.savefig('./images/cifar/fc_comm_rate.png')
+    for rate, delta in zip(rate_per_delta, deltas):
+        plt.plot(T, rate, label=f'rate={rho:.2f}')
+    plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
+    plt.xlabel('Time Step')
+    plt.ylabel('Rate')
+    plt.title('Communication Rate - Fully Connected')
+    plt.savefig('./images/cifar/fc_comm_rate.png')
 
-    # for load, acc, delta in zip(loads, test_accs, deltas):
-    #     plt.plot(acc, load, label=f'rate={delta:.2f}', marker='x')
-    # plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
-    # plt.xlabel('Test Accuracy')
-    # plt.ylabel('Communication Load')
-    # plt.title('Fully Connected')
-    # plt.savefig('./images/cifar/fc_test_load.png')
+    for load, acc, delta in zip(loads, test_accs, deltas):
+        plt.plot(acc, load, label=f'rate={delta:.2f}', marker='x')
+    plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
+    plt.xlabel('Test Accuracy')
+    plt.ylabel('Communication Load')
+    plt.title('Fully Connected')
+    plt.savefig('./images/cifar/fc_test_load.png')
     
     # Save plotting data
-    # np.save(file='figure_data/cifar/rates_per_delta', arr=rate_per_delta)
-    # np.save(file='figure_data/cifar/accs_per_delta', arr=acc_per_delta)
-    # np.save(file='figure_data/cifar/loads_per_delta', arr=loads)
-    # np.save(file='figure_data/cifar/deltas', arr=deltas)
+    print(rate_per_delta)
+    print(acc_per_delta)
+    print(loads)
+    print(deltas)
+    np.save(file='figure_data/cifar/rates_per_delta', arr=rate_per_delta)
+    np.save(file='figure_data/cifar/accs_per_delta', arr=acc_per_delta)
+    np.save(file='figure_data/cifar/loads_per_delta', arr=loads)
+    np.save(file='figure_data/cifar/deltas', arr=deltas)
