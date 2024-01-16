@@ -5,7 +5,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import os
 
-def load_cifar10_data(datadir='.data/cifar10/'):
+def load_cifar10_data(datadir='./data/cifar10/'):
     """Load CIFAR10 dataset."""
     transform = transforms.Compose([transforms.ToTensor()])
 
@@ -26,7 +26,7 @@ class CIFAR10Sub(data.Dataset):
 
     def __init__(
         self,
-        root='.data/cifar10/',
+        root='./data/cifar10/',
         dataidxs=None,
         train=True,
         transform=None,

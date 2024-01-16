@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import random
 
 def split_dataset(dataset, train_ratio, val_ratio):
     dataset_length = len(dataset)
@@ -14,6 +14,11 @@ def split_dataset(dataset, train_ratio, val_ratio):
     return train_dataset_fc, val_dataset_fc, test_dataset_fc
 
 # --------- Functions ---------
+
+def sublist_by_fraction(agents, fraction: float):
+    n = max(int(len(agents) * fraction), 0) # ensure non-negative number of samples
+    sample_indices = set(random.sample(range(len(agents)), n))
+    return [agent for i, agent in enumerate(agents) if i in sample_indices]
 
 def scale_params(model_params, a):
     for param in model_params:

@@ -12,7 +12,7 @@ from admm.servers import EventADMM
 from admm.models import Cifar10CNN, Model2
 from admm.utils import average_params
 from admm.data import partition_data, split_dataset
-from moon_dataset import get_dataloader, partition_data
+from admm.moon_dataset import get_dataloader, partition_data
 
 sns.set_theme()
 num_gpus = 1
@@ -186,6 +186,8 @@ if __name__ == '__main__':
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
     plt.savefig('./images/cifar/fc_val.png')
+    plt.cla()
+    plt.clf()
 
     for rate, delta in zip(rate_per_delta, deltas):
         plt.plot(T, rate, label=f'rate={rho:.2f}')
@@ -194,6 +196,8 @@ if __name__ == '__main__':
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')
     plt.savefig('./images/cifar/fc_comm_rate.png')
+    plt.cla()
+    plt.clf()
 
     for load, acc, delta in zip(loads, test_accs, deltas):
         plt.plot(acc, load, label=f'rate={delta:.2f}', marker='x')
@@ -202,12 +206,10 @@ if __name__ == '__main__':
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
     plt.savefig('./images/cifar/fc_test_load.png')
+    plt.cla()
+    plt.clf()
     
     # Save plotting data
-    print(rate_per_delta)
-    print(acc_per_delta)
-    print(loads)
-    print(deltas)
     np.save(file='figure_data/cifar/rates_per_delta', arr=rate_per_delta)
     np.save(file='figure_data/cifar/accs_per_delta', arr=acc_per_delta)
     np.save(file='figure_data/cifar/loads_per_delta', arr=loads)

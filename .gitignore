@@ -6,6 +6,8 @@ experiments/cluster/*.err
 experiments/cluster/*.out
 experiments/cluster/data/
 experiments/cluster/.data/
+experiments/cluster/cifar/data
+*data/
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 
@@ -29,7 +31,9 @@ wheels/
 pip-log.txt
 pip-delete-this-directory.txt
 *.log
-
+*.err
+*.out
+*.sub
 # Unit test / coverage reports 
 htmlcov/ 
 .tox/ 
