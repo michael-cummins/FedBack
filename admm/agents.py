@@ -86,6 +86,62 @@ class FedConsensus:
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
 
+class FedADMM:
+
+    def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
+                 train_loader: DataLoader, epochs: int, device: str, 
+                 lr: float, data_ratio: float, epsilon: float) -> None: 
+        
+        self.primal_avg = None
+        self.device = device
+        self.model = model.to(device)
+        self.rho=rho
+        self.N=N
+        self.delta = delta
+        self.epsilon = epsilon
+        self.broadcast = False
+        self.lr = lr
+        self.last_communicated = self.copy_params(self.model.parameters())
+        self.residual = self.copy_params(self.model.parameters())
+        self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
+        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.train_loader = train_loader
+        self.criterion = loss
+        self.epochs = epochs
+        self.data_ratio = data_ratio
+
+    def primal_update(self) -> None:
+        grad = 10000
+        # Solve argmin problem
+        while grad <= self.epsilon:
+            for i, (data, target) in enumerate(self.train_loader):
+                data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
+                prox = 0.0
+                for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
+                    prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
+                loss = self.criterion(self.model(data), target) + prox*self.rho/2
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step() 
+        
+        # If "send on delta" then update residual and broadcast to other agents
+        self.update_residual()
+
+    def dual_update(self) -> None:  
+        primal_copy = self.copy_params(self.model.parameters())
+        subtract_params(primal_copy, self.primal_avg)
+        add_params(self.lam, primal_copy)
+    
+    def update_residual(self):
+        # Current local z-value
+        self.residual = self.copy_params(self.model.parameters())
+        add_params(self.residual, self.lam)
+        scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
+
+    def copy_params(self, params):
+        copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
+        return copy
+
 class Fed:
 
     """

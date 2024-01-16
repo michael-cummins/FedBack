@@ -206,7 +206,7 @@ def _power_law_split(
     sorted_trainset: Dataset,
     num_partitions: int,
     num_labels_per_partition: int = 10,
-    min_data_per_partition: int = 10,
+    min_data_per_partition: int = 500,
     mean: float = 0.0,
     sigma: float = 2.0,
 ) -> Dataset:
