@@ -10,7 +10,7 @@ from admm.servers import FedAgg
 from admm.models import FCNet
 from admm.utils import average_params
 from admm.data import partition_data, split_dataset
-from mnist_jobs import FedLearnJob
+from mnist_jobs import FedLearnJob, FedEventJob
 import seaborn as sns
 sns.set_theme()
 
@@ -76,23 +76,40 @@ if __name__ == '__main__':
     """
     Build DataLoaders
     """
+
     batch_size = 28
-    train_loaders = [DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0) for dataset in trainsets]
+    train_loaders = [
+        DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0) for dataset in trainsets
+    ]
     test_loader = DataLoader(mnist_testset, batch_size=100, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_dataset, batch_size=100, shuffle=True, num_workers=0)
 
     """
     Run FedAVG and FedProx Experiments
     """
-    
-    prox_args = {
-        'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
-        't_max':5, 'lr':0.01, 'device':device, 'prox':True
-    }
-    avg_args = prox_args.copy()
-    avg_args['prox'] = False
-    args = (prox_args, avg_args)
+    t_max = 100
+    num_clients = 100
 
-    for arg in args:
-        job = FedLearnJob(**arg)
-        job.run()
+    event_args = {
+        'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
+        't_max':t_max, 'lr':0.15, 'device':device, 'num_clients':num_clients
+    }
+
+    job = FedEventJob(**event_args)
+    job.run()
+    
+    # prox_args = {
+    #     'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
+    #     't_max':t_max, 'lr':0.01, 'device':device, 'prox':True
+    # }
+    # avg_args = prox_args.copy()
+    # avg_args['prox'] = False
+    # args = (prox_args, avg_args)
+
+    # for arg in args:
+    #     job = FedLearnJob(**arg)
+    #     job.run()
+
+    """
+    Run FedEvent Exxperiments
+    """

@@ -4,7 +4,7 @@ import torch
 from admm.utils import *
 from admm.models import FCNet
 from torch.utils.data.dataloader import DataLoader
-
+from torch.optim.lr_scheduler import StepLR
 from collections import OrderedDict
 
 class FedConsensus:
@@ -15,7 +15,7 @@ class FedConsensus:
     
     def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
                  train_loader: DataLoader, epochs: int, device: str, 
-                 lr: float, data_ratio: float) -> None:        
+                 lr: float, data_ratio: float, global_weight: float) -> None:        
         
         self.primal_avg = None
         self.device = device
@@ -24,20 +24,20 @@ class FedConsensus:
         self.N=N
         self.delta = delta
         self.broadcast = False
+        self.global_weight = global_weight
         self.lr = lr
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
-        self.dell = 0
-        self.send = False
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
+        self.stepper = StepLR(optimizer=self.optimizer, gamma=0.95, step_size=1)
 
     def primal_update(self) -> None:
         
@@ -52,7 +52,7 @@ class FedConsensus:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
-
+        self.stepper.step()
         # check for how much paramters changed
         delta = 0
         for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):
@@ -82,7 +82,7 @@ class FedConsensus:
         add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated)
         # scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
-        scale_params(self.residual, a=1/self.data_ratio)
+        scale_params(self.residual, a=self.global_weight)
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
@@ -112,7 +112,7 @@ class FedLearn:
         self.model = model.to(device)
         self.lr = lr
         self.num_samples = len(train_loader.dataset)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, momentum=0.9)
         self.train_loader = train_loader
         self.criterion = loss
         self.epochs = epochs

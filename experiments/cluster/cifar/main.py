@@ -1,0 +1,76 @@
+import torch
+import torch.nn as nn
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+from admm.agents import FedConsensus
+from admm.servers import EventADMM
+from admm.models import Cifar10CNN, Model2
+from admm.utils import average_params
+from admm.data import partition_data, split_dataset
+from admm.moon_dataset import get_dataloader, partition_data
+
+sns.set_theme()
+num_gpus = 1
+if torch.cuda.is_available(): 
+    device = 'cuda'
+    torch.cuda.manual_seed(78)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    gpu = ''
+    for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'
+    print(gpu)
+else:
+    raise Exception('GPU not available')
+
+if __name__ == '__main__':
+    num_clients=100
+    batch_size=16
+    
+    torch.manual_seed(78)
+    (
+        _,
+        _,
+        _,
+        _,
+        net_dataidx_map,
+    ) = partition_data(
+        partition='noniid',
+        num_clients=num_clients,
+        beta=0.5,
+    )
+    _, test_global_dl, _, _ = get_dataloader(
+        datadir='./data/cifar10',
+        train_bs=32,
+        test_bs=32,
+    )
+    trainloaders = []
+    for idx in range(num_clients):
+        train_dl, _, _, _ = get_dataloader(
+            './data/cifar10', batch_size, 32, net_dataidx_map[idx]
+        )
+
+        trainloaders.append(train_dl)
+    trainsets = [loader.dataset for loader in trainloaders]
+    
+    for i, dataset in enumerate(trainsets):
+        labels = np.zeros(10)
+        dummy_loader = DataLoader(dataset, batch_size=1)
+        for data, target in dummy_loader:
+            labels[int(target.item())] += 1
+        print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    # labels = np.zeros(10)
+    # dummy_loader = DataLoader(val_dataset, batch_size=1)
+    # for data, target in dummy_loader:
+    #     labels[int(target.item())] += 1
+    # print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(test_global_dl.dataset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[int(target.item())] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
