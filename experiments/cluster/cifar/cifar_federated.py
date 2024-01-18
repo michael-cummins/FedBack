@@ -55,8 +55,8 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
-    num_clients=10
-    batch_size=64
+    num_clients=100
+    batch_size=16
     torch.manual_seed(78)
     (
         _,
@@ -114,40 +114,43 @@ if __name__ == '__main__':
     Setting up Consensus Problem
     """
 
-    deltas = list(range(0,28,4))
-    lr = 0.01
-    t_max = 100
-    rho = 0.01/num_clients
+    # deltas = list(range(0,32,4))
+    # deltas = [8,10,14]
+    deltas = [0]
+    lr = 0.15
+    t_max = 200
+    rho = 0.01
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
     loads = []
     test_accs = []
-    gamma = 1e-4
-    
+    gamma = 1e-5
+    global_weight = rho/(rho*num_clients - 2*gamma)
+    print(f'Test with scheduler stepping after each 5 epochs for each client')
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
     for i, delta in enumerate(deltas):
         agents = []
         for j, loader in enumerate(trainloaders):
             data_ratio = len(loader.dataset)/total_samples
-            print(f'agent {j} data ratio: {data_ratio}')
+            # print(f'agent {j} data ratio: {data_ratio}')
             torch.manual_seed(78)
             model = Cifar10CNN()
             agents.append(
                 FedConsensus(
                     N=len(trainloaders),
                     delta=delta,
-                    rho=rho/data_ratio,
+                    rho=rho,
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
                     epochs=5,
                     data_ratio=data_ratio,
                     device=device,
-                    lr=lr
+                    lr=lr,
+                    global_weight=global_weight
                 ) 
             )
 
-        global_weight = rho/(rho*sum([1/agent.data_ratio for agent in agents]) - 2*gamma)
         # Broadcast average to all agents and check if equal
         for agent in agents:
             agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
@@ -160,8 +163,7 @@ if __name__ == '__main__':
 
         torch.manual_seed(78)
         global_model = Cifar10CNN()
-        server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device, global_weight=global_weight)
-        print('Server spinning')
+        server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
         server.spin(loader=test_global_dl)
         
         # For plotting purposes
@@ -185,7 +187,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
-    plt.savefig('./images/cifar/fc_val.png')
+    plt.savefig('./images/FedEvent/fc_val_100.png')
     plt.cla()
     plt.clf()
 
@@ -195,7 +197,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')
-    plt.savefig('./images/cifar/fc_comm_rate.png')
+    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
     plt.cla()
     plt.clf()
 
@@ -205,12 +207,12 @@ if __name__ == '__main__':
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
-    plt.savefig('./images/cifar/fc_test_load.png')
+    plt.savefig('./images/FedEvent/fc_test_load_100.png')
     plt.cla()
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/cifar/rates_per_delta', arr=rate_per_delta)
-    np.save(file='figure_data/cifar/accs_per_delta', arr=acc_per_delta)
-    np.save(file='figure_data/cifar/loads_per_delta', arr=loads)
-    np.save(file='figure_data/cifar/deltas', arr=deltas)
+    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_delta)
+    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_delta)
+    np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
+    np.save(file='figure_data/FedEvent/deltas_100', arr=deltas)

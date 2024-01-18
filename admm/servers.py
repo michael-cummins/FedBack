@@ -14,14 +14,13 @@ from admm.utils import sublist_by_fraction
     
 class EventADMM:
 
-    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: str, global_weight: float) -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: str) -> None:
         self.agents = clients
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
         self.device = device
-        self.global_weight = global_weight
         
         # For experiment purposes
         self.rates = []
@@ -48,7 +47,7 @@ class EventADMM:
                     C.append(agent.residual)
             if C:
                 # If communicaiton set isn't empty
-                residuals = [x*self.global_weight for x in sum_params(C)]
+                residuals = [x for x in sum_params(C)]
                 for agent in self.agents:
                     add_params(agent.primal_avg, residuals)
                     # scale_params(agent.primal_avg, self.global_weight)

@@ -26,6 +26,7 @@ wheels/
 *.egg 
 *.manifest 
 *.spec 
+token.txt
 
 # Log files
 pip-log.txt
