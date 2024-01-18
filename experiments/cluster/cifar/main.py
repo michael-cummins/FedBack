@@ -13,6 +13,7 @@ from admm.models import Cifar10CNN, Model2
 from admm.utils import average_params
 from admm.data import partition_data, split_dataset
 from admm.moon_dataset import get_dataloader, partition_data
+from cifar_jobs import FedLearnJob
 
 sns.set_theme()
 num_gpus = 1
@@ -49,10 +50,10 @@ if __name__ == '__main__':
     )
     trainloaders = []
     for idx in range(num_clients):
+        torch.manual_seed(78)
         train_dl, _, _, _ = get_dataloader(
             './data/cifar10', batch_size, 32, net_dataidx_map[idx]
         )
-
         trainloaders.append(train_dl)
     trainsets = [loader.dataset for loader in trainloaders]
     
@@ -63,14 +64,27 @@ if __name__ == '__main__':
             labels[int(target.item())] += 1
         print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
-    # labels = np.zeros(10)
-    # dummy_loader = DataLoader(val_dataset, batch_size=1)
-    # for data, target in dummy_loader:
-    #     labels[int(target.item())] += 1
-    # print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
-
     labels = np.zeros(10)
     dummy_loader = DataLoader(test_global_dl.dataset, batch_size=1)
     for data, target in dummy_loader:
         labels[int(target.item())] += 1
     print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+
+    """
+    Run FedAVG and FedProx Experiments
+    """
+    t_max = 100
+    num_clients = 10
+
+    prox_args = {
+        'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
+        't_max':t_max, 'lr':0.01, 'device':device, 'prox':True
+    }
+    avg_args = prox_args.copy()
+    avg_args['prox'] = False
+    args = (prox_args, avg_args)
+
+    # for arg in args:
+    job = FedLearnJob(**prox_args)
+    job.run()

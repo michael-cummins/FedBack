@@ -10,6 +10,7 @@ import statistics
 import subprocess
 import re
 from admm.utils import sublist_by_fraction
+import math
 
     
 class EventADMM:
@@ -39,6 +40,12 @@ class EventADMM:
                 delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, Median: {statistics.median(D):.8f}'
             if self.device == 'cuda': torch.cuda.synchronize()
             
+            for i, d in enumerate(D):
+                if d <= 0 or math.isnan(d): 
+                    print(f'Last communicated = {self.agents[i].last_communicated}\n \
+                          Params = {self.agents[i].copy_params(self.agents[i].model.parameters())}')
+                    raise Exception(f'Agent {i} has delta {d}')
+                
             # Residual update in the case of communication
             C = []
             for agent in self.agents:

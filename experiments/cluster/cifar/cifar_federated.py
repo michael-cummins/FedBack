@@ -116,17 +116,18 @@ if __name__ == '__main__':
 
     # deltas = list(range(0,32,4))
     # deltas = [8,10,14]
+    torch.autograd.detect_anomaly(True)
     deltas = [0]
-    lr = 0.15
+    lr = 0.1
     t_max = 200
-    rho = 0.01
+    rho = 0.01/num_clients
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
     loads = []
     test_accs = []
     gamma = 1e-5
     global_weight = rho/(rho*num_clients - 2*gamma)
-    print(f'Test with scheduler stepping after each 5 epochs for each client')
+    print(f'Test with scheduler, rescaling rho per client, no momentum and softmax')
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
     for i, delta in enumerate(deltas):
         agents = []
@@ -139,7 +140,7 @@ if __name__ == '__main__':
                 FedConsensus(
                     N=len(trainloaders),
                     delta=delta,
-                    rho=rho,
+                    rho=rho/data_ratio,
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
@@ -187,7 +188,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
-    plt.savefig('./images/FedEvent/fc_val_100.png')
+    plt.savefig('./images/FedEvent/fc_val_100_2.png')
     plt.cla()
     plt.clf()
 
@@ -197,7 +198,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')
-    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
+    plt.savefig('./images/FedEvent/fc_comm_rate_100_2.png')
     plt.cla()
     plt.clf()
 
@@ -207,12 +208,12 @@ if __name__ == '__main__':
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
-    plt.savefig('./images/FedEvent/fc_test_load_100.png')
+    plt.savefig('./images/FedEvent/fc_test_load_100_2.png')
     plt.cla()
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_delta)
-    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_delta)
-    np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
-    np.save(file='figure_data/FedEvent/deltas_100', arr=deltas)
+    np.save(file='figure_data/FedEvent/rates_per_delta_100_2', arr=rate_per_delta)
+    np.save(file='figure_data/FedEvent/accs_per_delta_100_2', arr=acc_per_delta)
+    np.save(file='figure_data/FedEvent/loads_per_delta_100_2', arr=loads)
+    np.save(file='figure_data/FedEvent/deltas_100_2', arr=deltas)
