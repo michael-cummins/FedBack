@@ -98,17 +98,17 @@ if __name__ == '__main__':
     job = FedEventJob(**event_args)
     job.run()
     
-    # prox_args = {
-    #     'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
-    #     't_max':t_max, 'lr':0.01, 'device':device, 'prox':True
-    # }
-    # avg_args = prox_args.copy()
-    # avg_args['prox'] = False
-    # args = (prox_args, avg_args)
+    prox_args = {
+        'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
+        't_max':t_max, 'lr':0.01, 'device':device, 'prox':True
+    }
+    avg_args = prox_args.copy()
+    avg_args['prox'] = False
+    args = (prox_args, avg_args)
 
-    # for arg in args:
-    #     job = FedLearnJob(**arg)
-    #     job.run()
+    for arg in args:
+        job = FedLearnJob(**arg)
+        job.run()
 
     """
     Run FedEvent Exxperiments

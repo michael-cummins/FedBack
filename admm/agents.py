@@ -31,13 +31,13 @@ class FedConsensus:
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
-        self.stepper = StepLR(optimizer=self.optimizer, gamma=0.95, step_size=1)
+        # self.stepper = StepLR(optimizer=self.optimizer, gamma=0.975, step_size=1)
 
     def primal_update(self) -> None:
         
@@ -52,7 +52,7 @@ class FedConsensus:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
-        self.stepper.step()
+        # self.stepper.step()
         # check for how much paramters changed
         delta = 0
         for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):

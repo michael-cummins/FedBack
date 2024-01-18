@@ -56,7 +56,9 @@ class Cifar10CNN(nn.Module):
     
     @torch.autocast(device_type="cuda")
     def forward(self, xb):
-        return self.network(xb)
+        logits = self.network(xb)
+        probs = torch.nn.functional.softmax(logits, dim=1)
+        return probs
 
 class MNistCNN(nn.Module):
 
