@@ -16,10 +16,11 @@ from admm.moon_dataset import get_dataloader, partition_data
 
 sns.set_theme()
 num_gpus = 1
+# torch.set_num_threads(16)
 if torch.cuda.is_available(): 
     device = 'cuda'
     torch.cuda.manual_seed(78)
-    torch.backends.cuda.matmul.allow_tf32 = True
+    # torch.backends.cuda.matmul.allow_tf32 = True
     gpu = ''
     for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'
     print(gpu)
@@ -55,8 +56,8 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
-    num_clients=100
-    batch_size=16
+    num_clients=10
+    batch_size=64
     torch.manual_seed(78)
     (
         _,
@@ -116,18 +117,19 @@ if __name__ == '__main__':
 
     # deltas = list(range(0,32,4))
     # deltas = [8,10,14]
-    torch.autograd.detect_anomaly(True)
-    deltas = [0]
-    lr = 0.1
-    t_max = 200
+    # torch.autograd.detect_anomaly(True)
+    deltas = [0, 4, 8, 12, 16, 20, 24]
+    lr = 0.001
+    t_max = 100
     rho = 0.01/num_clients
     acc_per_delta = np.zeros((len(deltas), t_max))
     rate_per_delta = np.zeros((len(deltas), t_max))
     loads = []
     test_accs = []
-    gamma = 1e-5
+    gamma = 0
     global_weight = rho/(rho*num_clients - 2*gamma)
-    print(f'Test with scheduler, rescaling rho per client, no momentum and softmax')
+    print(f'Testing for Nan')
+
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
     for i, delta in enumerate(deltas):
         agents = []
@@ -144,7 +146,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=5,
+                    epochs=2,
                     data_ratio=data_ratio,
                     device=device,
                     lr=lr,
@@ -153,10 +155,10 @@ if __name__ == '__main__':
             )
 
         # Broadcast average to all agents and check if equal
-        for agent in agents:
-            agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
-            # print(f'Agents device = {next(agent.model.parameters()).device}')
-        if device == 'cuda': torch.cuda.synchronize()
+        # for agent in agents:
+        #     agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
+        #     # print(f'Agents device = {next(agent.model.parameters()).device}')
+        # if device == 'cuda': torch.cuda.synchronize()
 
         """
         Run the consensus algorithm

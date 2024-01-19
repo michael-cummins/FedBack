@@ -17,7 +17,7 @@ class FedConsensus:
                  train_loader: DataLoader, epochs: int, device: str, 
                  lr: float, data_ratio: float, global_weight: float) -> None:        
         
-        self.primal_avg = None
+        # self.primal_avg = Non
         self.device = device
         self.model = model.to(device)
         self.rho=rho
@@ -29,9 +29,10 @@ class FedConsensus:
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.primal_avg = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
+        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
@@ -48,10 +49,26 @@ class FedConsensus:
                 prox = 0.0
                 for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                     prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                loss = self.criterion(self.model(data), target) + prox*self.rho/2
+                with torch.autocast(device_type='cuda', dtype=torch.float32):
+                    pred = self.model(data)
+                    loss = self.criterion(pred, target) + prox*self.rho/2              
                 self.optimizer.zero_grad()
                 loss.backward()
+                # prev_params = self.copy_params(self.model.parameters())
                 self.optimizer.step() 
+                
+                # nan_check = [torch.isnan(tensor).any() for tensor in self.model.parameters()]
+                # prev_nan_check = [torch.isnan(tensor).any() for tensor in prev_params]
+                # if any(nan_check):
+                #     print(f'previous params had a Nan: {any(prev_nan_check)}')
+                #     for param in prev_params: print(param)
+                #     print(f'Loss = {loss.item()}')
+                #     print(f'Prediction: {pred}')
+                #     print('Dual param')
+                #     for param in self.lam: print(param)
+                #     raise ValueError('Found a Nan')
+
+
         # self.stepper.step()
         # check for how much paramters changed
         delta = 0
@@ -217,43 +234,42 @@ class EventGlobalConsensusTorch:
 
 class FedADMM:
 
-    def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
+    def __init__(self, rho: int, N: int, loss: nn.Module, model: nn.Module,
                  train_loader: DataLoader, epochs: int, device: str, 
-                 lr: float, data_ratio: float, epsilon: float) -> None: 
+                 lr: float, data_ratio: float) -> None: 
         
         self.primal_avg = None
         self.device = device
         self.model = model.to(device)
         self.rho=rho
         self.N=N
-        self.delta = delta
-        self.epsilon = epsilon
         self.broadcast = False
         self.lr = lr
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, momentum=0.9)
         self.train_loader = train_loader
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
 
-    def primal_update(self) -> None:
-        grad = 10000
+    def update(self, global_params) -> None:
         # Solve argmin problem
-        while grad <= self.epsilon:
+        self.primal_avg = global_params
+        for epoch in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
                 prox = 0.0
                 for param, dual_param, avg in zip(self.model.parameters(), self.lam, self.primal_avg):
                     prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
-                loss = self.criterion(self.model(data), target) + prox*self.rho/2
+                loss = self.criterion(self.model(data), target) + prox*self.rho/(2*self.data_ratio)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
         
-        # If "send on delta" then update residual and broadcast to other agents
+        self.dual_update()
         self.update_residual()
 
     def dual_update(self) -> None:  
@@ -265,7 +281,7 @@ class FedADMM:
         # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
-        scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
+        # scale_params(self.residual, a=1/self.N)
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]

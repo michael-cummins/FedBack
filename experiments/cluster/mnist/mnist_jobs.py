@@ -50,7 +50,7 @@ class FedEventJob:
                         model=model,
                         loss=nn.CrossEntropyLoss(),
                         train_loader=loader,
-                        epochs=1,
+                        epochs=5,
                         data_ratio=data_ratio,
                         device=self.device,
                         lr=self.lr,

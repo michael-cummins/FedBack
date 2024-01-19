@@ -13,13 +13,13 @@ from admm.models import Cifar10CNN, Model2
 from admm.utils import average_params
 from admm.data import partition_data, split_dataset
 from admm.moon_dataset import get_dataloader, partition_data
-from cifar_jobs import FedLearnJob
+from cifar_jobs import FedLearnJob, FedADMMJob
 
 sns.set_theme()
 num_gpus = 1
 if torch.cuda.is_available(): 
     device = 'cuda'
-    torch.cuda.manual_seed(78)
+    # torch.cuda.manual_seed(42)
     torch.backends.cuda.matmul.allow_tf32 = True
     gpu = ''
     for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'
@@ -28,10 +28,11 @@ else:
     raise Exception('GPU not available')
 
 if __name__ == '__main__':
-    num_clients=100
-    batch_size=16
+    num_clients=10
+    batch_size=64
     
-    torch.manual_seed(78)
+    # torch.manual_seed(42)
+    # np.random.seed(42)
     (
         _,
         _,
@@ -50,7 +51,6 @@ if __name__ == '__main__':
     )
     trainloaders = []
     for idx in range(num_clients):
-        torch.manual_seed(78)
         train_dl, _, _, _ = get_dataloader(
             './data/cifar10', batch_size, 32, net_dataidx_map[idx]
         )
@@ -85,6 +85,11 @@ if __name__ == '__main__':
     avg_args['prox'] = False
     args = (prox_args, avg_args)
 
+    ADMM_args = {
+        'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
+        't_max':t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients
+    }
+
     # for arg in args:
-    job = FedLearnJob(**prox_args)
+    job = FedADMMJob(**ADMM_args)
     job.run()
