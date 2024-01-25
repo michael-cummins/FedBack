@@ -19,7 +19,7 @@ num_gpus = 1
 # torch.set_num_threads(16)
 if torch.cuda.is_available(): 
     device = 'cuda'
-    torch.cuda.manual_seed(78)
+    torch.cuda.manual_seed(42)
     # torch.backends.cuda.matmul.allow_tf32 = True
     gpu = ''
     for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'
@@ -56,9 +56,8 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
-    num_clients=10
+    num_clients=100
     batch_size=64
-    torch.manual_seed(78)
     (
         _,
         _,
@@ -69,6 +68,7 @@ if __name__ == '__main__':
         partition='noniid',
         num_clients=num_clients,
         beta=0.5,
+        num_labels=10
     )
     _, test_global_dl, _, _ = get_dataloader(
         datadir='./data/cifar10',
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     # deltas = [8,10,14]
     # torch.autograd.detect_anomaly(True)
     deltas = [0, 4, 8, 12, 16, 20, 24]
-    lr = 0.001
+    lr = 0.1
     t_max = 100
     rho = 0.01/num_clients
     acc_per_delta = np.zeros((len(deltas), t_max))
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         for j, loader in enumerate(trainloaders):
             data_ratio = len(loader.dataset)/total_samples
             # print(f'agent {j} data ratio: {data_ratio}')
-            torch.manual_seed(78)
+            torch.manual_seed(42)
             model = Cifar10CNN()
             agents.append(
                 FedConsensus(
@@ -146,7 +146,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=2,
+                    epochs=20,
                     data_ratio=data_ratio,
                     device=device,
                     lr=lr,
@@ -155,16 +155,16 @@ if __name__ == '__main__':
             )
 
         # Broadcast average to all agents and check if equal
-        # for agent in agents:
-        #     agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
-        #     # print(f'Agents device = {next(agent.model.parameters()).device}')
-        # if device == 'cuda': torch.cuda.synchronize()
+        for agent in agents:
+            agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
+            # print(f'Agents device = {next(agent.model.parameters()).device}')
+        if device == 'cuda': torch.cuda.synchronize()
 
         """
         Run the consensus algorithm
         """
 
-        torch.manual_seed(78)
+        torch.manual_seed(42)
         global_model = Cifar10CNN()
         server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
         server.spin(loader=test_global_dl)
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
-    plt.savefig('./images/FedEvent/fc_val_100_2.png')
+    plt.savefig('./images/FedEvent/fc_val_100.png')
     plt.cla()
     plt.clf()
 
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')
-    plt.savefig('./images/FedEvent/fc_comm_rate_100_2.png')
+    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
     plt.cla()
     plt.clf()
 
@@ -210,12 +210,12 @@ if __name__ == '__main__':
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
-    plt.savefig('./images/FedEvent/fc_test_load_100_2.png')
+    plt.savefig('./images/FedEvent/fc_test_load_100.png')
     plt.cla()
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/FedEvent/rates_per_delta_100_2', arr=rate_per_delta)
-    np.save(file='figure_data/FedEvent/accs_per_delta_100_2', arr=acc_per_delta)
-    np.save(file='figure_data/FedEvent/loads_per_delta_100_2', arr=loads)
-    np.save(file='figure_data/FedEvent/deltas_100_2', arr=deltas)
+    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_delta)
+    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_delta)
+    np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
+    np.save(file='figure_data/FedEvent/deltas_100', arr=deltas)

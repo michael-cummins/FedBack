@@ -98,12 +98,12 @@ class CIFAR10Sub(data.Dataset):
         """
         return len(self.data)
 
-def partition_data(partition, num_clients, beta):
+def partition_data(partition, num_clients, beta, num_labels: int):
     """Partition data into train and test sets for IID and non-IID experiments."""
     X_train, y_train, X_test, y_test = load_cifar10_data()
 
     n_train = y_train.shape[0]
-    # np.random.seed(42)
+    np.random.seed(42)
     if partition in ("homo", "iid"):
         idxs = np.random.permutation(n_train)
         batch_idxs = np.array_split(idxs, num_clients)
@@ -112,7 +112,7 @@ def partition_data(partition, num_clients, beta):
     elif partition in ("noniid-labeldir", "noniid"):
         min_size = 0
         min_require_size = 10
-        K = 10
+        K = num_labels
 
         N = y_train.shape[0]
         net_dataidx_map = {}
@@ -121,7 +121,6 @@ def partition_data(partition, num_clients, beta):
             idx_batch = [[] for _ in range(num_clients)]
             for k in range(K):
                 idx_k = np.where(y_train == k)[0]
-                np.random.seed(78)
                 np.random.shuffle(idx_k)
                 proportions = np.random.dirichlet(np.repeat(beta, num_clients))
                 proportions = np.array(

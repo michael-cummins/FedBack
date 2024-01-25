@@ -17,7 +17,7 @@ class FedConsensus:
                  train_loader: DataLoader, epochs: int, device: str, 
                  lr: float, data_ratio: float, global_weight: float) -> None:        
         
-        # self.primal_avg = Non
+        self.primal_avg = None
         self.device = device
         self.model = model.to(device)
         self.rho=rho
@@ -29,16 +29,16 @@ class FedConsensus:
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        self.primal_avg = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+        # self.primal_avg = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
-        # self.stepper = StepLR(optimizer=self.optimizer, gamma=0.975, step_size=1)
+        self.stepper = StepLR(optimizer=self.optimizer, gamma=0.975, step_size=1)
 
     def primal_update(self) -> None:
         
@@ -51,9 +51,11 @@ class FedConsensus:
                     prox += torch.norm(param - avg.data + dual_param.data, p='fro')**2
                 with torch.autocast(device_type='cuda', dtype=torch.float32):
                     pred = self.model(data)
-                    loss = self.criterion(pred, target) + prox*self.rho/2              
+                    loss = self.criterion(pred, target) + prox*self.rho/2         
+                     
                 self.optimizer.zero_grad()
                 loss.backward()
+                nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
                 # prev_params = self.copy_params(self.model.parameters())
                 self.optimizer.step() 
                 
@@ -69,7 +71,7 @@ class FedConsensus:
                 #     raise ValueError('Found a Nan')
 
 
-        # self.stepper.step()
+        self.stepper.step()
         # check for how much paramters changed
         delta = 0
         for old_param, updated_param, dual_param in zip(self.last_communicated, self.model.parameters(), self.lam):

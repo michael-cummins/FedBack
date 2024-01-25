@@ -22,12 +22,12 @@ class EventADMM:
         self.comm = 0
         self.N = len(self.agents)
         self.device = device
-        
+
         # For experiment purposes
         self.rates = []
         self.val_accs = []
         self.global_model = model.to(self.device)
-
+    
     def spin(self, loader=None) -> None:
         for _ in self.pbar:
             

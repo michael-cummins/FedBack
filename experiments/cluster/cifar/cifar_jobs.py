@@ -10,8 +10,7 @@ from admm.utils import average_params
 import matplotlib.pyplot as plt
 import numpy as np
 
-class FedEventJob:
-    
+
 
 class FedADMMJob:
 
@@ -140,7 +139,7 @@ class FedLearnJob:
 
         for i, rate in enumerate(rates):
             for loader in self.train_loaders:
-                torch.manual_seed(78)
+                torch.manual_seed(42)
                 model = Cifar10CNN()
                 self.agents.append(
                     FedLearn(
@@ -148,13 +147,13 @@ class FedLearnJob:
                         loss=nn.CrossEntropyLoss(),
                         model=model,
                         train_loader=loader,
-                        epochs=5,
+                        epochs=20,
                         device=self.device,
                         lr=self.lr
                     )
                 )
             
-            torch.manual_seed(78)
+            torch.manual_seed(42)
             global_model = Cifar10CNN()
             server = FedAgg(
                 clients=self.agents, 
