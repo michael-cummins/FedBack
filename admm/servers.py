@@ -20,36 +20,43 @@ class EventADMM:
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
+        self.dual_comm = 0
         self.N = len(self.agents)
         self.device = device
+        
 
         # For experiment purposes
         self.rates = []
         self.val_accs = []
         self.global_model = model.to(self.device)
+        self.cumm_global = 0
     
     def spin(self, loader=None) -> None:
-        for _ in self.pbar:
+        for round in self.pbar:
             
             # Primal Update
-
+            
             D = []
             for agent in self.agents:
-                d = agent.primal_update()
+                d = agent.primal_update(params=self.get_parameters(self.global_model))
                 D.append(d)
-                delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, Median: {statistics.median(D):.8f}'
+                # delta_description = f', min Delta: {min(D):.8f}, max Delta: {max(D):.8f}, Median: {statistics.median(D):.8f}'
+            self.cumm_global += sum(D)
+            delta_description = f', Global: {D}, cumm: {self.cumm_global}'
             if self.device == 'cuda': torch.cuda.synchronize()
             
             for i, d in enumerate(D):
-                if d <= 0 or math.isnan(d): 
+                if d < 0 or math.isnan(d): 
                     print(f'Last communicated = {self.agents[i].last_communicated}\n \
                           Params = {self.agents[i].copy_params(self.agents[i].model.parameters())}')
                     raise Exception(f'Agent {i} has delta {d}')
                 
             # Residual update in the case of communication
             C = []
-            for agent in self.agents:
+            comm_list=[]
+            for i, agent in enumerate(self.agents):
                 if agent.broadcast: 
+                    comm_list.append(i)
                     self.comm += 1
                     C.append(agent.residual)
             if C:
@@ -62,7 +69,21 @@ class EventADMM:
             
             # Dual update
             for agent in self.agents:
-                agent.dual_update()
+                _ = agent.dual_update()
+            if self.device == 'cuda': torch.cuda.synchronize()
+           
+            # Residual update in the case of communication
+            C = []
+            for i, agent in enumerate(self.agents):
+                if agent.broadcast: 
+                    if i not in comm_list: self.comm += 1
+                    C.append(agent.residual)
+            if C:
+                # If communicaiton set isn't empty
+                residuals = [x for x in sum_params(C)]
+                for agent in self.agents:
+                    add_params(agent.primal_avg, residuals)
+                    # scale_params(agent.primal_avg, self.global_weight)
             if self.device == 'cuda': torch.cuda.synchronize()
             
             # Test updated params on validation set
@@ -89,7 +110,9 @@ class EventADMM:
             
             # Analyse communication frequency
             freq = self.comm/(self.N)
+            # dual_freq = self.dual_comm/(self.N)
             self.comm = 0
+            self.dual_comm = 0
             self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description + GPU_desctiption)
 
             # For experiment purposes
@@ -106,6 +129,10 @@ class EventADMM:
         state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
         model.load_state_dict(state_dict, strict=True)
         return model
+    
+    def get_parameters(self, model):
+        """Return the parameters of the current net."""
+        return [val.cpu().numpy() for _, val in model.state_dict().items()]
     
     def validate_global(self, loader: DataLoader) -> float:
         wrong_count = 0

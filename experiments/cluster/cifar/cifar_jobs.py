@@ -147,7 +147,7 @@ class FedLearnJob:
                         loss=nn.CrossEntropyLoss(),
                         model=model,
                         train_loader=loader,
-                        epochs=20,
+                        epochs=2,
                         device=self.device,
                         lr=self.lr
                     )

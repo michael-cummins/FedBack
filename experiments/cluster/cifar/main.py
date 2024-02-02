@@ -43,6 +43,7 @@ if __name__ == '__main__':
         partition='noniid',
         num_clients=num_clients,
         beta=0.5,
+        num_labels=10
     )
     _, test_global_dl, _, _ = get_dataloader(
         datadir='./data/cifar10',
@@ -75,7 +76,6 @@ if __name__ == '__main__':
     Run FedAVG and FedProx Experiments
     """
     t_max = 100
-    num_clients = 10
 
     prox_args = {
         'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
@@ -91,5 +91,5 @@ if __name__ == '__main__':
     }
 
     # for arg in args:
-    job = FedLearnJob(**avg_args)
+    job = FedLearnJob(**prox_args)
     job.run()

@@ -56,7 +56,7 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
-    num_clients=100
+    num_clients=10
     batch_size=64
     (
         _,
@@ -118,8 +118,10 @@ if __name__ == '__main__':
     # deltas = list(range(0,32,4))
     # deltas = [8,10,14]
     # torch.autograd.detect_anomaly(True)
-    deltas = [0, 4, 8, 12, 16, 20, 24]
-    lr = 0.1
+    # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
+    deltas = [0, 10, 16, 20, 21.5, 23, 26, 28]
+    deltas = [16]
+    lr = 0.01
     t_max = 100
     rho = 0.01/num_clients
     acc_per_delta = np.zeros((len(deltas), t_max))
@@ -128,7 +130,6 @@ if __name__ == '__main__':
     test_accs = []
     gamma = 0
     global_weight = rho/(rho*num_clients - 2*gamma)
-    print(f'Testing for Nan')
 
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
     for i, delta in enumerate(deltas):
@@ -136,6 +137,7 @@ if __name__ == '__main__':
         for j, loader in enumerate(trainloaders):
             data_ratio = len(loader.dataset)/total_samples
             # print(f'agent {j} data ratio: {data_ratio}')
+            
             torch.manual_seed(42)
             model = Cifar10CNN()
             agents.append(
@@ -146,7 +148,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=20,
+                    epochs=2,
                     data_ratio=data_ratio,
                     device=device,
                     lr=lr,
@@ -190,32 +192,32 @@ if __name__ == '__main__':
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy - Fully Connected - niid')
-    plt.savefig('./images/FedEvent/fc_val_100.png')
+    plt.savefig('./images/FedEvent/fc_val.png')
     plt.cla()
     plt.clf()
 
     for rate, delta in zip(rate_per_delta, deltas):
-        plt.plot(T, rate, label=f'rate={rho:.2f}')
+        plt.plot(T, rate, label=f'rate={delta:.2f}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
     plt.title('Communication Rate - Fully Connected')
-    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
+    plt.savefig('./images/FedEvent/fc_comm_rate.png')
     plt.cla()
     plt.clf()
 
     for load, acc, delta in zip(loads, test_accs, deltas):
-        plt.plot(acc, load, label=f'rate={delta:.2f}', marker='x')
+        plt.plot(acc, load, label=f'delta={delta:.2f}', marker='x')
     plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
     plt.title('Fully Connected')
-    plt.savefig('./images/FedEvent/fc_test_load_100.png')
+    plt.savefig('./images/FedEvent/fc_test_load.png')
     plt.cla()
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_delta)
-    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_delta)
-    np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
-    np.save(file='figure_data/FedEvent/deltas_100', arr=deltas)
+    np.save(file='figure_data/FedEvent/rates_per_delta', arr=rate_per_delta)
+    np.save(file='figure_data/FedEvent/accs_per_delta', arr=acc_per_delta)
+    np.save(file='figure_data/FedEvent/loads_per_delta', arr=loads)
+    np.save(file='figure_data/FedEvent/deltas', arr=deltas)

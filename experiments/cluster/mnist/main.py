@@ -42,7 +42,7 @@ if __name__ == '__main__':
     train_dataset, val_dataset, _ = split_dataset(dataset=mnist_trainset, train_ratio=0.8, val_ratio=0.2)
 
     trainsets = partition_data(
-        num_clients=100,
+        num_clients=10,
         iid=False,
         balance=True,
         power_law=False,
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     Build DataLoaders
     """
 
-    batch_size = 28
+    batch_size = 64
     train_loaders = [
         DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0) for dataset in trainsets
     ]
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     event_args = {
         'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
-        't_max':t_max, 'lr':0.15, 'device':device, 'num_clients':num_clients
+        't_max':t_max, 'lr':0.01, 'device':device, 'num_clients':num_clients
     }
 
     job = FedEventJob(**event_args)
@@ -104,11 +104,11 @@ if __name__ == '__main__':
     }
     avg_args = prox_args.copy()
     avg_args['prox'] = False
-    args = (prox_args, avg_args)
+    args = (avg_args)
 
-    for arg in args:
-        job = FedLearnJob(**arg)
-        job.run()
+    # for arg in args:
+    #     job = FedLearnJob(**args)
+    #     job.run()
 
     """
     Run FedEvent Exxperiments

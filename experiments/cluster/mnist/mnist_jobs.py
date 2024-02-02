@@ -27,12 +27,12 @@ class FedEventJob:
     def run(self) -> None:
 
         deltas = list(range(0,11,1))
-        # deltas = [0]
+        deltas = [0]
         acc_per_delta = np.zeros((len(deltas), self.t_max))
         rate_per_delta = np.zeros((len(deltas), self.t_max))
         loads = []
         test_accs = []
-        gamma = 1e-4
+        gamma = 0
         rho = 0.01
         global_weight = rho/(rho*self.num_clients - 2*gamma)
         total_samples = sum([len(loader.dataset) for loader in self.train_loaders])
@@ -50,7 +50,7 @@ class FedEventJob:
                         model=model,
                         loss=nn.CrossEntropyLoss(),
                         train_loader=loader,
-                        epochs=5,
+                        epochs=10,
                         data_ratio=data_ratio,
                         device=self.device,
                         lr=self.lr,
@@ -143,6 +143,7 @@ class FedLearnJob:
     def run(self):
         rates = np.arange(start=0.1, stop=0.6, step=0.1)
         rates = [*rates.tolist(), 1]
+        rates=[1]
         print(rates)
 
         self.agents = []
@@ -161,7 +162,7 @@ class FedLearnJob:
                         loss=nn.CrossEntropyLoss(),
                         model=model,
                         train_loader=loader,
-                        epochs=1,
+                        epochs=10,
                         device=self.device,
                         lr=self.lr
                     )
