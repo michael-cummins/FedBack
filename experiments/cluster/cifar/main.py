@@ -91,5 +91,5 @@ if __name__ == '__main__':
     }
 
     # for arg in args:
-    job = FedLearnJob(**prox_args)
+    job = FedLearnJob(**avg_args)
     job.run()

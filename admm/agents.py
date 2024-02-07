@@ -47,18 +47,24 @@ class FedConsensus:
         self.local_seq = [0]
         self.global_seq = [0]
 
-    def primal_update(self, params) -> None:
+    def primal_update(self, round, params) -> None:
+        
+        self.primal_avg = params
+        if round > 0: self.dual_update()
+        
         self.local_seq.append(self.Lagrangian(use_global=False, params=params))
         self.global_seq.append(self.Lagrangian(use_global=True, params=params))
-        local_diff = self.local_seq[-2] - self.local_seq[-1]
-        global_diff = self.global_seq[-2] - self.global_seq[-1]
+        # local_diff = self.local_seq[-2] - self.local_seq[-1]
+        # global_diff = self.global_seq[-2] - self.global_seq[-1]
         
-        if local_diff <= global_diff:
-            using_global: int = 1
-            self.model = self.set_parameters(model=self.model, parameters=params)
+        local_loss = self.local_seq[-1]
+        global_loss = self.global_seq[-1]
+        print(f'local diff {local_loss}, global diff: {global_loss}')
+        if local_loss >= global_loss: using_global: int = 1
         else: using_global: int = 0
-       
+        
         # Solve argmin problem
+        if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
@@ -68,25 +74,10 @@ class FedConsensus:
                 with torch.autocast(device_type='cuda', dtype=torch.float32):
                     pred = self.model(data)
                     loss = self.criterion(pred, target) + prox*self.rho/2         
-                     
                 self.optimizer.zero_grad()
                 loss.backward()
-                # nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
-                # prev_params = self.copy_params(self.model.parameters())
                 self.optimizer.step() 
                 
-                # nan_check = [torch.isnan(tensor).any() for tensor in self.model.parameters()]
-                # prev_nan_check = [torch.isnan(tensor).any() for tensor in prev_params]
-                # if any(nan_check):
-                #     print(f'previous params had a Nan: {any(prev_nan_check)}')
-                #     for param in prev_params: print(param)
-                #     print(f'Loss = {loss.item()}')
-                #     print(f'Prediction: {pred}')
-                #     print('Dual param')
-                #     for param in self.lam: print(param)
-                #     raise ValueError('Found a Nan')
-
-
         # self.stepper.step()
         # check for how much paramters changed
         delta_prime = 0
@@ -99,38 +90,21 @@ class FedConsensus:
         if delta_prime >= self.delta:      
             self.update_residual()
             self.last_communicated_prime = self.copy_params(self.model.parameters())
-            # add_params(self.last_communicated, self.lam)
+            add_params(self.last_communicated_prime, self.lam)
             self.broadcast = True
         else:
             self.broadcast = False
 
-        return using_global
+        return delta_prime, using_global
     
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())
         subtract_params(primal_copy, self.primal_avg)
         add_params(self.lam, primal_copy)
 
-        delta_dual = 0
-        for old_lam, updated_lam in zip(self.last_communicated_lam, self.lam):
-            with torch.no_grad():
-                delta_dual += torch.norm(old_lam.data - updated_lam.data, p='fro').item()**2
-        delta_dual = np.sqrt(delta_dual)
-
-        if delta_dual >= self.delta:      
-            self.update_dual_residual()
-            self.last_communicated_lam = self.copy_params(self.lam)
-            # add_params(self.last_communicated, self.lam)
-            self.broadcast = True
-        else:
-            self.broadcast = False
-
-        return delta_dual
-
     def Lagrangian(self, use_global: bool, params):
         model = copy.deepcopy(self.model)
-        if use_global: model = self.set_parameters(params, model)
-        # Compute lagrangian using local params
+        if use_global: model = self.set_parameters(params, model)        
         for data, target in self.full_loader:
             data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
             prox = 0.0
@@ -140,21 +114,13 @@ class FedConsensus:
                 pred = model(data)
                 lagrangian = self.criterion(pred, target) + prox*self.rho/2
             break
-    
         return lagrangian.item()
         
-
-    def update_dual_residual(self):
-        self.residual = self.copy_params(self.lam)
-        subtract_params(self.residual, self.last_communicated_lam)
-        scale_params(self.residual, a=self.global_weight)
-
     def update_residual(self):
         # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
-        # add_params(self.residual, self.lam)
+        add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated_prime)
-        # scale_params(self.residual, a=self.rho/(self.N*self.rho - 2*0.0001))
         scale_params(self.residual, a=self.global_weight)
 
     def copy_params(self, params):

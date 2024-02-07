@@ -119,32 +119,33 @@ if __name__ == '__main__':
     # deltas = [8,10,14]
     # torch.autograd.detect_anomaly(True)
     # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
-    deltas = [0, 10, 16, 20, 21.5, 23, 26, 28]
-    deltas = [16]
+    
+    rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
     lr = 0.01
-    t_max = 100
-    rho = 0.01/num_clients
-    acc_per_delta = np.zeros((len(deltas), t_max))
-    rate_per_delta = np.zeros((len(deltas), t_max))
+    t_max = 200
+    rho = 0.01
+    
+    acc_per_ref = np.zeros((len(rate_refs), t_max))
+    rate_per_ref = np.zeros((len(rate_refs), t_max))
     loads = []
     test_accs = []
+    
     gamma = 0
     global_weight = rho/(rho*num_clients - 2*gamma)
-
+    print(f'Testing with delta_z, still using K=5')
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
-    for i, delta in enumerate(deltas):
+    for i, ref in enumerate(rate_refs):
+        
         agents = []
         for j, loader in enumerate(trainloaders):
-            data_ratio = len(loader.dataset)/total_samples
-            # print(f'agent {j} data ratio: {data_ratio}')
-            
+            data_ratio = len(loader.dataset)/total_samples            
             torch.manual_seed(42)
             model = Cifar10CNN()
             agents.append(
                 FedConsensus(
                     N=len(trainloaders),
-                    delta=delta,
-                    rho=rho/data_ratio,
+                    delta=0,
+                    rho=rho/(data_ratio*num_clients),
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
@@ -169,14 +170,14 @@ if __name__ == '__main__':
         torch.manual_seed(42)
         global_model = Cifar10CNN()
         server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
-        server.spin(loader=test_global_dl)
+        server.spin(loader=test_global_dl, K=5, rate_ref=ref)
         
         # For plotting purposes
-        acc_per_delta[i,:] = server.val_accs
-        rate_per_delta[i,:] = server.rates
-        load = sum(rate_per_delta[i,:])/t_max
+        acc_per_ref[i,:] = server.val_accs
+        rate_per_ref[i,:] = server.rates
+        load = sum(rate_per_ref[i,:])/t_max
         acc = server.validate_global(loader=test_global_dl)
-        print(f'Load for delta {delta} = {load} | Test accuracy = {acc}')
+        print(f'Load for ref {ref} = {load} | Test accuracy = {acc}')
         loads.append(load)
         test_accs.append(acc.cpu().numpy())
 
@@ -186,38 +187,38 @@ if __name__ == '__main__':
 
     T = range(t_max)
     
-    for acc_per, delta in zip(acc_per_delta, deltas):
-        plt.plot(T, acc_per, label=f'rho={delta}:.2f')
+    for acc_per, ref in zip(acc_per_ref, rate_refs):
+        plt.plot(T, acc_per, label=f'ref={ref}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
-    plt.title('Validation Set Accuracy - Fully Connected - niid')
-    plt.savefig('./images/FedEvent/fc_val.png')
+    plt.title('Validation Set Accuracy')
+    plt.savefig('./images/FedEvent/fc_val_100.png')
     plt.cla()
     plt.clf()
 
-    for rate, delta in zip(rate_per_delta, deltas):
-        plt.plot(T, rate, label=f'rate={delta:.2f}')
+    for rate, ref in zip(rate_per_ref, rate_refs):
+        plt.plot(T, rate, label=f'ref={ref}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
-    plt.title('Communication Rate - Fully Connected')
-    plt.savefig('./images/FedEvent/fc_comm_rate.png')
+    plt.title('Communication Rate')
+    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
     plt.cla()
     plt.clf()
 
-    for load, acc, delta in zip(loads, test_accs, deltas):
-        plt.plot(acc, load, label=f'delta={delta:.2f}', marker='x')
+    for load, acc, delta in zip(loads, test_accs, rate_refs):
+        plt.plot(acc, load, label=f'ref={ref}', marker='-x')
     plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
-    plt.title('Fully Connected')
-    plt.savefig('./images/FedEvent/fc_test_load.png')
+    plt.title('Test/Load tradeoff')
+    plt.savefig('./images/FedEvent/fc_test_load_100.png')
     plt.cla()
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/FedEvent/rates_per_delta', arr=rate_per_delta)
-    np.save(file='figure_data/FedEvent/accs_per_delta', arr=acc_per_delta)
-    np.save(file='figure_data/FedEvent/loads_per_delta', arr=loads)
-    np.save(file='figure_data/FedEvent/deltas', arr=deltas)
+    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_ref)
+    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_ref)
+    np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
+    np.save(file='figure_data/FedEvent/deltas_100', arr=rate_refs)
