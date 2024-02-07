@@ -48,7 +48,7 @@ class FedADMMJob:
                         model=model,
                         loss=nn.CrossEntropyLoss(),
                         train_loader=loader,
-                        epochs=5,
+                        epochs=2,
                         device=self.device,
                         lr=self.lr,
                         data_ratio=len(loader.dataset)/total_samples
@@ -57,8 +57,9 @@ class FedADMMJob:
 
             torch.manual_seed(78)
             model = Cifar10CNN()
+            k0 = 1 if rate == 1 else 2
             server = InexactADMM(clients=self.agents, C=rate, t_max=self.t_max,
-                                 model=model, device=self.device, num_clients=self.num_agents, k0=2)
+                                 model=model, device=self.device, num_clients=self.num_agents, k0=k0)
             server.spin(loader=self.val_loader)
 
             self.acc_per_rate[i,:] = server.val_accs
@@ -129,7 +130,6 @@ class FedLearnJob:
     def run(self):
         rates = np.arange(start=0.1, stop=0.6, step=0.1)
         rates = [*rates.tolist(), 1]
-        rates = [0.2]
         print(rates)
 
         self.agents = []

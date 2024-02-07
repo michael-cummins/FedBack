@@ -143,7 +143,6 @@ class FedLearnJob:
     def run(self):
         rates = np.arange(start=0.1, stop=0.6, step=0.1)
         rates = [*rates.tolist(), 1]
-        rates=[1]
         print(rates)
 
         self.agents = []

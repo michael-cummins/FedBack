@@ -75,7 +75,7 @@ if __name__ == '__main__':
     """
     Run FedAVG and FedProx Experiments
     """
-    t_max = 100
+    t_max = 200
 
     prox_args = {
         'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
@@ -91,5 +91,5 @@ if __name__ == '__main__':
     }
 
     # for arg in args:
-    job = FedLearnJob(**avg_args)
+    job = FedLearnJob(**prox_args)
     job.run()

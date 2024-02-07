@@ -21,7 +21,6 @@ class EventADMM:
         self.t_max = t_max
         self.pbar = tqdm(range(t_max))
         self.comm = 0
-        self.dual_comm = 0
         self.N = len(self.agents)
         self.device = device
         
@@ -30,13 +29,15 @@ class EventADMM:
         self.val_accs = []
         self.global_model = model.to(self.device)
         self.global_params = self.get_parameters(self.global_model)
-        self.last_communicated = self.global_params
+        self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
         self.cumm_global = 0
         self.delta_z = 0
     
     def spin(self, K, rate_ref, loader=None) -> None:
+        
         adaptive_delta=True
         delta = self.agents[0].delta
+        
         for round in self.pbar:
             
             # Primal Update
@@ -46,21 +47,23 @@ class EventADMM:
                 d, global_indicator = agent.primal_update(round, params=self.last_communicated)
                 D.append(d)
                 delta_description += str(global_indicator)
-            delta_description += f', delta_val={delta}, min Delta: {min(D):.2f}, max Delta: {max(D):.2f}, Median: {statistics.median(D):.2f}'
+            delta_description += f', delta_val={delta}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
             if self.device == 'cuda': torch.cuda.synchronize()
                 
             # Residual update in the case of communication
             C = []
             comm_list=[]
+            self.comm = 0
             for i, agent in enumerate(self.agents):
                 if agent.broadcast: 
                     comm_list.append(i)
                     self.comm += 1
                     C.append(agent.residual)
-            if C:
+            if C: 
                 # If communicaiton set isn't empty
                 residuals = [x for x in sum_params(C)]
                 add_params(self.global_params, residuals)
+            local_freq = self.comm/self.N
             if self.device == 'cuda': torch.cuda.synchronize()
             
             # Calculating delta_z
@@ -68,11 +71,13 @@ class EventADMM:
             for old_z, new_z in zip(self.last_communicated, self.global_params):
                 with torch.no_grad():
                     d_z += torch.norm(new_z - old_z, p='fro').item()**2
-            if np.sqrt(d_z) >= self.delta_z: 
-                self.last_communicated = self.global_params
-                freq = 0.5
-            else: freq = 0.0
-
+            d_z = np.sqrt(d_z)
+            if d_z >= self.delta_z: 
+                self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
+                global_freq = 1
+            else: global_freq = 0
+            delta_description += f', glob: {d_z:.2f}'
+            
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
@@ -91,11 +96,9 @@ class EventADMM:
                 GPU_desctiption = f', ram = {ram_using}'
             else: GPU_desctiption = ''
             
-            # Analyse communication frequency
-            freq += self.comm/(self.N*2)
-            self.comm = 0
-            self.dual_comm = 0
-            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption + delta_description + GPU_desctiption)
+            # Analyse communication frequency and log stats
+            freq = (global_freq + local_freq)*0.5
+            self.pbar.set_description(f'global: {int(global_freq)}, Comm: {freq:.2f}' + acc_descrption + delta_description + GPU_desctiption)
 
             # For experiment purposes
             self.rates.append(freq)
