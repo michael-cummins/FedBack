@@ -120,21 +120,27 @@ if __name__ == '__main__':
     # torch.autograd.detect_anomaly(True)
     # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
     
-    rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
+    # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
+    rate_ref=0.1
+    Kzs = [10, 5, 3, 1]
+    # Kzs.reverse()
     lr = 0.01
-    t_max = 200
+    t_max = 100
     rho = 0.01
     
-    acc_per_ref = np.zeros((len(rate_refs), t_max))
-    rate_per_ref = np.zeros((len(rate_refs), t_max))
+    acc_per_item = np.zeros((len(Kzs), t_max))
+    rate_per_item = np.zeros((len(Kzs), t_max))
     loads = []
     test_accs = []
     
     gamma = 0
     global_weight = rho/(rho*num_clients - 2*gamma)
-    print(f'Testing with delta_z, still using K=5')
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
-    for i, ref in enumerate(rate_refs):
+
+    item_list = Kzs
+    item_key = 'K_z'
+
+    for i, item in enumerate(item_list):
         
         agents = []
         for j, loader in enumerate(trainloaders):
@@ -170,14 +176,14 @@ if __name__ == '__main__':
         torch.manual_seed(42)
         global_model = Cifar10CNN()
         server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
-        server.spin(loader=test_global_dl, K=5, rate_ref=ref)
+        server.spin(loader=test_global_dl, K_x=5, K_z=item, rate_ref=rate_ref)
         
         # For plotting purposes
-        acc_per_ref[i,:] = server.val_accs
-        rate_per_ref[i,:] = server.rates
-        load = sum(rate_per_ref[i,:])/t_max
+        acc_per_item[i,:] = server.val_accs
+        rate_per_item[i,:] = server.rates
+        load = sum(rate_per_item[i,:])/t_max
         acc = server.validate_global(loader=test_global_dl)
-        print(f'Load for ref {ref} = {load} | Test accuracy = {acc}')
+        print(f'Load for {item_key} {item} = {load} | Test accuracy = {acc}')
         loads.append(load)
         test_accs.append(acc.cpu().numpy())
 
@@ -187,8 +193,8 @@ if __name__ == '__main__':
 
     T = range(t_max)
     
-    for acc_per, ref in zip(acc_per_ref, rate_refs):
-        plt.plot(T, acc_per, label=f'ref={ref}')
+    for acc_per, item in zip(acc_per_item, item_list):
+        plt.plot(T, acc_per, label=f'{item_key}={item}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Accuracy')
@@ -197,8 +203,8 @@ if __name__ == '__main__':
     plt.cla()
     plt.clf()
 
-    for rate, ref in zip(rate_per_ref, rate_refs):
-        plt.plot(T, rate, label=f'ref={ref}')
+    for rate, item in zip(rate_per_item, item_list):
+        plt.plot(T, rate, label=f'{item_key}={item}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')
     plt.ylabel('Rate')
@@ -207,8 +213,8 @@ if __name__ == '__main__':
     plt.cla()
     plt.clf()
 
-    for load, acc, delta in zip(loads, test_accs, rate_refs):
-        plt.plot(acc, load, label=f'ref={ref}', marker='-x')
+    for load, acc, item in zip(loads, test_accs, item_list):
+        plt.plot(acc, load, label=f'{item_key}={item}', marker='x')
     plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
     plt.xlabel('Test Accuracy')
     plt.ylabel('Communication Load')
@@ -218,7 +224,7 @@ if __name__ == '__main__':
     plt.clf()
     
     # Save plotting data
-    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_ref)
-    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_ref)
+    np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_item)
+    np.save(file='figure_data/FedEvent/accs_per_delta_100', arr=acc_per_item)
     np.save(file='figure_data/FedEvent/loads_per_delta_100', arr=loads)
-    np.save(file='figure_data/FedEvent/deltas_100', arr=rate_refs)
+    np.save(file='figure_data/FedEvent/deltas_100', arr=item_list)

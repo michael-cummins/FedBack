@@ -71,7 +71,6 @@ if __name__ == '__main__':
         labels[int(target.item())] += 1
     print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
-
     """
     Run FedAVG and FedProx Experiments
     """

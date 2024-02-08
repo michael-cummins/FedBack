@@ -33,10 +33,12 @@ class EventADMM:
         self.cumm_global = 0
         self.delta_z = 0
     
-    def spin(self, K, rate_ref, loader=None) -> None:
+    def spin(self, K_x, K_z, rate_ref, loader=None) -> None:
         
         adaptive_delta=True
         delta = self.agents[0].delta
+        global_comm = 0
+        integral = 0
         
         for round in self.pbar:
             
@@ -47,7 +49,7 @@ class EventADMM:
                 d, global_indicator = agent.primal_update(round, params=self.last_communicated)
                 D.append(d)
                 delta_description += str(global_indicator)
-            delta_description += f', delta_val={delta}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
+            delta_description += f', d_x:{delta:.1f}, d_z:{self.delta_z:.1f}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
             if self.device == 'cuda': torch.cuda.synchronize()
                 
             # Residual update in the case of communication
@@ -77,6 +79,7 @@ class EventADMM:
                 global_freq = 1
             else: global_freq = 0
             delta_description += f', glob: {d_z:.2f}'
+            global_comm += global_freq
             
             # Test updated params on validation set
             acc_descrption = ''
@@ -98,6 +101,7 @@ class EventADMM:
             
             # Analyse communication frequency and log stats
             freq = (global_freq + local_freq)*0.5
+            # freq = local_freq
             self.pbar.set_description(f'global: {int(global_freq)}, Comm: {freq:.2f}' + acc_descrption + delta_description + GPU_desctiption)
 
             # For experiment purposes
@@ -105,11 +109,15 @@ class EventADMM:
             self.val_accs.append(global_acc.detach().cpu().numpy())
             
             if adaptive_delta:
-                delta = delta + K*(freq - rate_ref)
+                delta = delta + K_x*(local_freq - rate_ref)
                 if delta <= 0: delta = 0
                 # Assign delta to clients and server
                 for agent in self.agents: agent.delta = delta
-                self.delta_z = delta
+                # self.delta_z = delta
+                integral += global_comm/(round+1) - rate_ref
+                self.delta_z = K_z*(global_comm/(round+1) - rate_ref) + 0.01*integral
+                # self.delta_z = 7
+                if self.delta_z <= 0: delta = 0
 
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)
@@ -150,6 +158,7 @@ class EventADMM:
         model_accs = [1 - wrong/total for wrong in wrong_count]
         return model_accs
     
+
 class ServerBase:
 
     def __init__(self, t_max: int, model: torch.nn.Module, device: str) -> None:
@@ -181,6 +190,7 @@ class ServerBase:
             wrong_count += torch.count_nonzero(out-target)
         global_acc = 1 - wrong_count/total
         return global_acc
+
 
 class InexactADMM(ServerBase):
     def __init__(self, clients: List[agents.FedADMM], C: float, t_max: int, 
@@ -248,7 +258,7 @@ class FedAgg(ServerBase):
             # Sample subset of agents
             sampled_agents = sublist_by_fraction(agents=self.agents, fraction=self.C)
             global_params = self.get_parameters(self.global_model)
-            self.comm += len(sampled_agents)
+            self.comm = len(sampled_agents)
 
             # Send params to clients and let them train
             m_t = 0
@@ -273,7 +283,6 @@ class FedAgg(ServerBase):
 
              # Analyse communication frequency
             freq = self.comm/(self.N)
-            self.comm = 0
             self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption)
 
             # For experiment purposes

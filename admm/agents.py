@@ -24,7 +24,7 @@ class FedConsensus:
         self.rho=rho
         self.N=N
         self.delta = delta
-        self.broadcast = False
+        self.broadcast = True
         self.global_weight = global_weight
         self.lr = lr
         self.last_communicated_prime = self.copy_params(self.model.parameters())
@@ -49,20 +49,15 @@ class FedConsensus:
 
     def primal_update(self, round, params) -> None:
         
-        self.primal_avg = params
+        self.primal_avg = self.copy_params(params)
         if round > 0: self.dual_update()
         
-        self.local_seq.append(self.Lagrangian(use_global=False, params=params))
-        self.global_seq.append(self.Lagrangian(use_global=True, params=params))
-        # local_diff = self.local_seq[-2] - self.local_seq[-1]
-        # global_diff = self.global_seq[-2] - self.global_seq[-1]
-        
-        local_loss = self.local_seq[-1]
-        global_loss = self.global_seq[-1]
+        local_grad, local_loss = self.Lagrangian(use_global=False, params=params)
+        global_grad, global_loss = self.Lagrangian(use_global=True, params=params)
         print(f'local diff {local_loss}, global diff: {global_loss}')
         if local_loss >= global_loss: using_global: int = 1
         else: using_global: int = 0
-        
+
         # Solve argmin problem
         if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
         for _ in range(self.epochs):
@@ -103,8 +98,10 @@ class FedConsensus:
         add_params(self.lam, primal_copy)
 
     def Lagrangian(self, use_global: bool, params):
+       
         model = copy.deepcopy(self.model)
         if use_global: model = self.set_parameters(params, model)        
+        
         for data, target in self.full_loader:
             data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
             prox = 0.0
@@ -114,7 +111,14 @@ class FedConsensus:
                 pred = model(data)
                 lagrangian = self.criterion(pred, target) + prox*self.rho/2
             break
-        return lagrangian.item()
+        
+        model.zero_grad()
+        lagrangian.backward()
+        norm_grad = 0
+        for param in model.parameters():
+            norm_grad += torch.norm(param.grad, p='fro').item()**2
+
+        return norm_grad, lagrangian.item()
         
     def update_residual(self):
         # Current local z-value
@@ -257,6 +261,7 @@ class EventGlobalConsensusTorch:
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
+
 
 class FedADMM:
 
