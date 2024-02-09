@@ -52,14 +52,15 @@ class FedConsensus:
         self.primal_avg = self.copy_params(params)
         if round > 0: self.dual_update()
         
-        local_grad, local_loss = self.Lagrangian(use_global=False, params=params)
-        global_grad, global_loss = self.Lagrangian(use_global=True, params=params)
-        print(f'local diff {local_loss}, global diff: {global_loss}')
-        if local_loss >= global_loss: using_global: int = 1
-        else: using_global: int = 0
-
+        # local_grad, local_loss = self.Lagrangian(use_global=False, params=params)
+        # global_grad, global_loss = self.Lagrangian(use_global=True, params=params)
+        # print(f'local diff {local_loss}, global diff: {global_loss}')
+        # if local_loss >= global_loss: using_global: int = 1
+        # else: using_global: int = 0
+        using_global = 1
         # Solve argmin problem
-        if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
+        # if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
+        self.model = self.set_parameters(model=self.model, parameters=params)
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)

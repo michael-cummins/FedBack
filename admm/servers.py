@@ -115,7 +115,8 @@ class EventADMM:
                 for agent in self.agents: agent.delta = delta
                 # self.delta_z = delta
                 integral += global_comm/(round+1) - rate_ref
-                self.delta_z = K_z*(global_comm/(round+1) - rate_ref) + 0.01*integral
+                self.delta_z = K_z*(global_comm/(round+1) - rate_ref) #+ 0.01*integral
+                # self.delta_z = K_z*integral
                 # self.delta_z = 7
                 if self.delta_z <= 0: delta = 0
 

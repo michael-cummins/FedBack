@@ -103,14 +103,7 @@ if __name__ == '__main__':
         labels[int(target.item())] += 1
     print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
-    # 2 agents, batch 256, epochs 1 -> 100 steps per agent = 200 steps - 80% test acc
-    # 10 agents, batch 50, epochs 1 -> 100 steps per agent = 1000 steps - 68% test acc
-    # 10 agents (niid), batch 50, epochs 2 -> 200 steps per agent over 100 rounds = 2000 steps - 30% test acc
-    # batch_size = 32
-    # train_loaders = [DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8, persistent_workers=True) for dataset in trainsets]
-    # test_loader = DataLoader(cifar_testset, batch_size=batch_size, shuffle=True, num_workers=8, persistent_workers=True)
-    # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, persistent_workers=True)
-
+    
     """
     Setting up Consensus Problem
     """
@@ -122,7 +115,8 @@ if __name__ == '__main__':
     
     # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
     rate_ref=0.1
-    Kzs = [10, 5, 3, 1]
+    Kzs = [5, 3, 1]
+    Kzs = [10]
     # Kzs.reverse()
     lr = 0.01
     t_max = 100
@@ -141,6 +135,7 @@ if __name__ == '__main__':
     item_key = 'K_z'
 
     for i, item in enumerate(item_list):
+        print(f'Testing with K_z = {item} and initialising delta_z = 0 and using PI control')
         
         agents = []
         for j, loader in enumerate(trainloaders):
