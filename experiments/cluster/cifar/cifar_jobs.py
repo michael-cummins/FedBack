@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-
 class FedADMMJob:
 
     def __init__(self, train_loaders: List[DataLoader], test_loader: DataLoader, val_loader: DataLoader,
@@ -26,7 +25,7 @@ class FedADMMJob:
         self.num_agents = num_agents
 
     def run(self):
-        rates = np.arange(start=0.2, stop=0.8, step=0.2)
+        rates = np.arange(start=0.1, stop=0.6, step=0.1)
         rates = [*rates.tolist(), 1]
         print(rates)
 
@@ -57,7 +56,8 @@ class FedADMMJob:
 
             torch.manual_seed(78)
             model = Cifar10CNN()
-            k0 = 1 if rate == 1 else 2
+            # k0 = 1 if rate == 1 else 2
+            k0 = 1
             server = InexactADMM(clients=self.agents, C=rate, t_max=self.t_max,
                                  model=model, device=self.device, num_clients=self.num_agents, k0=k0)
             server.spin(loader=self.val_loader)

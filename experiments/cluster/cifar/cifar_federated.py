@@ -114,12 +114,12 @@ if __name__ == '__main__':
     # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
     
     # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
-    rate_ref=0.1
+    rate_ref=0.2
     Kzs = [5, 3, 1]
-    Kzs = [10]
+    Kzs = [5]
     # Kzs.reverse()
     lr = 0.01
-    t_max = 100
+    t_max = 200
     rho = 0.01
     
     acc_per_item = np.zeros((len(Kzs), t_max))
@@ -130,12 +130,12 @@ if __name__ == '__main__':
     gamma = 0
     global_weight = rho/(rho*num_clients - 2*gamma)
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
-
+    
     item_list = Kzs
     item_key = 'K_z'
 
     for i, item in enumerate(item_list):
-        print(f'Testing with K_z = {item} and initialising delta_z = 0 and using PI control')
+        print(f'Testing with K_z = {item} and initialising delta_z = 0 and using leaky PI control')
         
         agents = []
         for j, loader in enumerate(trainloaders):
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     plt.cla()
     plt.clf()
 
-    for rate, item in zip(rate_per_item, item_list):
+    for rate, item in zip(rate_per_item, item_list):    
         plt.plot(T, rate, label=f'{item_key}={item}')
     plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Time Step')

@@ -59,8 +59,8 @@ class FedConsensus:
         # else: using_global: int = 0
         using_global = 1
         # Solve argmin problem
-        # if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
-        self.model = self.set_parameters(model=self.model, parameters=params)
+        if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
+        # self.model = self.set_parameters(model=self.model, parameters=params)
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)

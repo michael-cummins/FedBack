@@ -34,11 +34,16 @@ class EventADMM:
         self.delta_z = 0
     
     def spin(self, K_x, K_z, rate_ref, loader=None) -> None:
-        
+
         adaptive_delta=True
         delta = self.agents[0].delta
-        global_comm = 0
+        global_comm = []
         integral = 0
+        window_length = 10
+        train = True
+        global_freq = 1
+        alpha = 0.2
+        p_meas = 0
         
         for round in self.pbar:
             
@@ -46,7 +51,9 @@ class EventADMM:
             D = []
             delta_description=', '
             for agent in self.agents:
-                d, global_indicator = agent.primal_update(round, params=self.last_communicated)
+                # if global_freq==1:
+                d , global_indicator = agent.primal_update(round, params=self.last_communicated)
+                # else: d, global_indicator = 0,0
                 D.append(d)
                 delta_description += str(global_indicator)
             delta_description += f', d_x:{delta:.1f}, d_z:{self.delta_z:.1f}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
@@ -79,7 +86,7 @@ class EventADMM:
                 global_freq = 1
             else: global_freq = 0
             delta_description += f', glob: {d_z:.2f}'
-            global_comm += global_freq
+            global_comm.append(global_freq)
             
             # Test updated params on validation set
             acc_descrption = ''
@@ -114,10 +121,18 @@ class EventADMM:
                 # Assign delta to clients and server
                 for agent in self.agents: agent.delta = delta
                 # self.delta_z = delta
-                integral += global_comm/(round+1) - rate_ref
-                self.delta_z = K_z*(global_comm/(round+1) - rate_ref) #+ 0.01*integral
+                # integral += global_comm/(round+1) - rate_ref
+                # self.delta_z = K_z*(global_comm/(round+1) - rate_ref) #+ 0.01*integral
+                
+                # if round < 10:
+                #     self.delta_z += K_z*(sum(global_comm[-window_length:])/(round + 1) - rate_ref)
+                # else:
+                #     self.delta_z += K_z*(sum(global_comm[-window_length:])/10 - rate_ref)
+                
                 # self.delta_z = K_z*integral
                 # self.delta_z = 7
+                p_meas = (1-alpha)*p_meas + alpha*global_freq
+                self.delta_z += K_z*(p_meas - rate_ref)
                 if self.delta_z <= 0: delta = 0
 
         self.rates = np.array(self.rates)
@@ -194,6 +209,7 @@ class ServerBase:
 
 
 class InexactADMM(ServerBase):
+    
     def __init__(self, clients: List[agents.FedADMM], C: float, t_max: int, 
                 model: torch.nn.Module, device: str, num_clients: int, k0: int) -> None:
         super().__init__(t_max, model, device)
