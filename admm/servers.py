@@ -30,63 +30,78 @@ class EventADMM:
         self.global_model = model.to(self.device)
         self.global_params = self.get_parameters(self.global_model)
         self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
+        self.local_res = [self.get_parameters(self.global_model) for _ in range(self.N)]
         self.cumm_global = 0
-        self.delta_z = 0
+        self.delta_z = np.zeros(self.N)
     
     def spin(self, K_x, K_z, rate_ref, loader=None) -> None:
 
         adaptive_delta=True
         delta = self.agents[0].delta
         global_comm = []
+        local_comm = []
         integral = 0
         window_length = 10
         train = True
         global_freq = 1
-        alpha = 0.2
-        p_meas = 0
-        
+        alpha = 0.9
+        p_meas = np.zeros(self.N)
+        global_freq = np.ones(self.N)
+        # p_meas = 0
+
         for round in self.pbar:
+
+            global_desc = ''
+            for elem in global_freq:
+                global_desc += str(int(elem))
+            
+            global_comm.append(sum(global_freq)/len(global_freq))
             
             # Primal Update
             D = []
             delta_description=', '
-            for agent in self.agents:
-                # if global_freq==1:
-                d , global_indicator = agent.primal_update(round, params=self.last_communicated)
-                # else: d, global_indicator = 0,0
-                D.append(d)
-                delta_description += str(global_indicator)
-            delta_description += f', d_x:{delta:.1f}, d_z:{self.delta_z:.1f}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
+            for i, agent in enumerate(self.agents):
+                if agent.recieve:
+                    d , global_indicator = agent.primal_update(round, params=self.global_params)
+                    agent.recieve=False
+                else: 
+                    d = 0
+                D.append(d)            
+            delta_description += f', d_x:{delta:.1f}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
             if self.device == 'cuda': torch.cuda.synchronize()
                 
             # Residual update in the case of communication
-            C = []
             comm_list=[]
             self.comm = 0
             for i, agent in enumerate(self.agents):
                 if agent.broadcast: 
                     comm_list.append(i)
                     self.comm += 1
-                    C.append(agent.residual)
-            if C: 
-                # If communicaiton set isn't empty
-                residuals = [x for x in sum_params(C)]
-                add_params(self.global_params, residuals)
+                    add_params(self.local_res[i], agent.residual)
+                    agent.broadcast=False
+            
+            self.global_params = average_params(self.local_res)
             local_freq = self.comm/self.N
             if self.device == 'cuda': torch.cuda.synchronize()
-            
+            local_comm.append(local_freq)
+
             # Calculating delta_z
-            d_z = 0
-            for old_z, new_z in zip(self.last_communicated, self.global_params):
-                with torch.no_grad():
-                    d_z += torch.norm(new_z - old_z, p='fro').item()**2
-            d_z = np.sqrt(d_z)
-            if d_z >= self.delta_z: 
-                self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
-                global_freq = 1
-            else: global_freq = 0
-            delta_description += f', glob: {d_z:.2f}'
-            global_comm.append(global_freq)
+            global_freq = np.zeros(self.N)
+            # global_freq = 0
+            for i, res in enumerate(self.local_res):
+                d_z = 0
+                for old_z, new_z in zip(res, self.global_params):
+                    with torch.no_grad():
+                        d_z += torch.norm(new_z - old_z, p='fro').item()**2
+                d_z = np.sqrt(d_z)
+                if d_z >= self.delta_z[i]: 
+                    # self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
+                    self.agents[i].recieve=True
+                    # global_freq[i] = 1
+                    global_freq[i] = 1
+                else: self.agents[i].recieve=False
+            
+            print(p_meas)
             
             # Test updated params on validation set
             acc_descrption = ''
@@ -109,7 +124,12 @@ class EventADMM:
             # Analyse communication frequency and log stats
             freq = (global_freq + local_freq)*0.5
             # freq = local_freq
-            self.pbar.set_description(f'global: {int(global_freq)}, Comm: {freq:.2f}' + acc_descrption + delta_description + GPU_desctiption)
+
+            delta_z_desc = ', dz: ('
+            for dz in self.delta_z:
+                delta_z_desc += f'{dz:.1f} '
+            delta_z_desc + ')'
+            self.pbar.set_description(f'global: ' + global_desc + acc_descrption + delta_description + delta_z_desc)
 
             # For experiment purposes
             self.rates.append(freq)
@@ -132,11 +152,17 @@ class EventADMM:
                 # self.delta_z = K_z*integral
                 # self.delta_z = 7
                 p_meas = (1-alpha)*p_meas + alpha*global_freq
-                self.delta_z += K_z*(p_meas - rate_ref)
-                if self.delta_z <= 0: delta = 0
+                # self.delta_z += K_z*(p_meas - rate_ref)
 
+                self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
+                for i, dz in enumerate(self.delta_z):
+                    if dz <=0: self.delta_z[i] = 0
+
+        load = statistics.mean(global_comm)*0.5 + statistics.mean(local_comm)*0.5
+        print(f'Total communication load = {load}, alpha = {alpha}')
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)
+
 
     def set_parameters(self, parameters, model: torch.nn.Module) -> None:
         """Change the parameters of the model using the given ones."""

@@ -25,6 +25,7 @@ class FedConsensus:
         self.N=N
         self.delta = delta
         self.broadcast = True
+        self.recieve = True
         self.global_weight = global_weight
         self.lr = lr
         self.last_communicated_prime = self.copy_params(self.model.parameters())
@@ -57,6 +58,7 @@ class FedConsensus:
         # print(f'local diff {local_loss}, global diff: {global_loss}')
         # if local_loss >= global_loss: using_global: int = 1
         # else: using_global: int = 0
+        
         using_global = 1
         # Solve argmin problem
         if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
@@ -90,6 +92,7 @@ class FedConsensus:
             self.broadcast = True
         else:
             self.broadcast = False
+        
 
         return delta_prime, using_global
     
@@ -126,7 +129,7 @@ class FedConsensus:
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
         subtract_params(self.residual, self.last_communicated_prime)
-        scale_params(self.residual, a=self.global_weight)
+        # scale_params(self.residual, a=self.global_weight)
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]

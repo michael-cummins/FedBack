@@ -28,6 +28,7 @@ else:
     raise Exception('GPU not available')
 
 if __name__ == '__main__':
+    
     """
     Data Preperation
     """
@@ -56,6 +57,7 @@ if __name__ == '__main__':
     #     trainset=train_dataset.dataset,
     #     labels_per_partition=10
     # )
+    
     num_clients=10
     batch_size=64
     (
@@ -114,12 +116,12 @@ if __name__ == '__main__':
     # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
     
     # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
-    rate_ref=0.2
+    rate_ref=0.1
     Kzs = [5, 3, 1]
     Kzs = [5]
     # Kzs.reverse()
     lr = 0.01
-    t_max = 200
+    t_max = 150
     rho = 0.01
     
     acc_per_item = np.zeros((len(Kzs), t_max))
