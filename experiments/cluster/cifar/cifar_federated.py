@@ -116,16 +116,17 @@ if __name__ == '__main__':
     # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
     
     # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
-    rate_ref=0.1
+    rate_ref=0.05
     Kzs = [5, 3, 1]
-    Kzs = [5]
+    rates = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 1]
     # Kzs.reverse()
     lr = 0.01
-    t_max = 150
+    t_max = 300
+    rounds = 100
     rho = 0.01
     
-    acc_per_item = np.zeros((len(Kzs), t_max))
-    rate_per_item = np.zeros((len(Kzs), t_max))
+    acc_per_item = np.zeros((len(Kzs), rounds))
+    rate_per_item = np.zeros((len(Kzs), rounds))
     loads = []
     test_accs = []
     
@@ -133,8 +134,8 @@ if __name__ == '__main__':
     global_weight = rho/(rho*num_clients - 2*gamma)
     total_samples = sum([len(loader.dataset) for loader in trainloaders])
     
-    item_list = Kzs
-    item_key = 'K_z'
+    item_list = rates
+    item_key = 'rate'
 
     for i, item in enumerate(item_list):
         print(f'Testing with K_z = {item} and initialising delta_z = 0 and using leaky PI control')
@@ -152,7 +153,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=2,
+                    epochs=8,
                     data_ratio=data_ratio,
                     device=device,
                     lr=lr,
@@ -173,22 +174,21 @@ if __name__ == '__main__':
         torch.manual_seed(42)
         global_model = Cifar10CNN()
         server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
-        server.spin(loader=test_global_dl, K_x=5, K_z=item, rate_ref=rate_ref)
+        server.spin(loader=test_global_dl, K_x=5, K_z=5, rate_ref=item)
         
         # For plotting purposes
         acc_per_item[i,:] = server.val_accs
-        rate_per_item[i,:] = server.rates
-        load = sum(rate_per_item[i,:])/t_max
+        # load = sum(rate_per_item[i,:])/t_max
         acc = server.validate_global(loader=test_global_dl)
-        print(f'Load for {item_key} {item} = {load} | Test accuracy = {acc}')
-        loads.append(load)
+        # print(f'Load for {item_key} {item} = {load} | Test accuracy = {acc}')
+        loads.append(server.load)
         test_accs.append(acc.cpu().numpy())
 
     """
     Plot Results
     """
 
-    T = range(t_max)
+    T = range(rounds)
     
     for acc_per, item in zip(acc_per_item, item_list):
         plt.plot(T, acc_per, label=f'{item_key}={item}')
@@ -197,16 +197,6 @@ if __name__ == '__main__':
     plt.ylabel('Accuracy')
     plt.title('Validation Set Accuracy')
     plt.savefig('./images/FedEvent/fc_val_100.png')
-    plt.cla()
-    plt.clf()
-
-    for rate, item in zip(rate_per_item, item_list):    
-        plt.plot(T, rate, label=f'{item_key}={item}')
-    plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
-    plt.xlabel('Time Step')
-    plt.ylabel('Rate')
-    plt.title('Communication Rate')
-    plt.savefig('./images/FedEvent/fc_comm_rate_100.png')
     plt.cla()
     plt.clf()
 

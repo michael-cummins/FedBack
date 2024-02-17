@@ -33,6 +33,7 @@ class EventADMM:
         self.local_res = [self.get_parameters(self.global_model) for _ in range(self.N)]
         self.cumm_global = 0
         self.delta_z = np.zeros(self.N)
+        # self.delta_z = 0
     
     def spin(self, K_x, K_z, rate_ref, loader=None) -> None:
 
@@ -43,7 +44,7 @@ class EventADMM:
         integral = 0
         window_length = 10
         train = True
-        global_freq = 1
+
         alpha = 0.9
         p_meas = np.zeros(self.N)
         global_freq = np.ones(self.N)
@@ -60,14 +61,16 @@ class EventADMM:
             # Primal Update
             D = []
             delta_description=', '
+            local_flag = False
             for i, agent in enumerate(self.agents):
                 if agent.recieve:
                     d , global_indicator = agent.primal_update(round, params=self.global_params)
                     agent.recieve=False
+                    local_flag = True
                 else: 
                     d = 0
                 D.append(d)            
-            delta_description += f', d_x:{delta:.1f}, min: {min(D):.2f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
+            delta_description += f', d_x:{delta:.1f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
             if self.device == 'cuda': torch.cuda.synchronize()
                 
             # Residual update in the case of communication
@@ -122,47 +125,36 @@ class EventADMM:
             else: GPU_desctiption = ''
             
             # Analyse communication frequency and log stats
-            freq = (global_freq + local_freq)*0.5
-            # freq = local_freq
 
             delta_z_desc = ', dz: ('
             for dz in self.delta_z:
                 delta_z_desc += f'{dz:.1f} '
             delta_z_desc + ')'
+            # delta_z_desc = f', dz: {self.delta_z}'
             self.pbar.set_description(f'global: ' + global_desc + acc_descrption + delta_description + delta_z_desc)
 
             # For experiment purposes
-            self.rates.append(freq)
-            self.val_accs.append(global_acc.detach().cpu().numpy())
+            if local_flag:
+                self.val_accs.append(global_acc.detach().cpu().numpy())
             
             if adaptive_delta:
-                delta = delta + K_x*(local_freq - rate_ref)
-                if delta <= 0: delta = 0
-                # Assign delta to clients and server
-                for agent in self.agents: agent.delta = delta
-                # self.delta_z = delta
-                # integral += global_comm/(round+1) - rate_ref
-                # self.delta_z = K_z*(global_comm/(round+1) - rate_ref) #+ 0.01*integral
-                
-                # if round < 10:
-                #     self.delta_z += K_z*(sum(global_comm[-window_length:])/(round + 1) - rate_ref)
-                # else:
-                #     self.delta_z += K_z*(sum(global_comm[-window_length:])/10 - rate_ref)
-                
-                # self.delta_z = K_z*integral
-                # self.delta_z = 7
-                p_meas = (1-alpha)*p_meas + alpha*global_freq
-                # self.delta_z += K_z*(p_meas - rate_ref)
+                if local_flag:
+                    delta = delta + K_x*(local_freq - rate_ref)
+                    if delta <= 0: delta = 0
+                    # Assign delta to clients and server
+                    for agent in self.agents: agent.delta = delta
 
+                p_meas = (1-alpha)*p_meas + alpha*global_freq
                 self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
                 for i, dz in enumerate(self.delta_z):
                     if dz <=0: self.delta_z[i] = 0
-
-        load = statistics.mean(global_comm)*0.5 + statistics.mean(local_comm)*0.5
-        print(f'Total communication load = {load}, alpha = {alpha}')
-        self.rates = np.array(self.rates)
+            
+            gc = [(g_elem + l_elem)/2 for g_elem, l_elem in zip(global_comm, local_comm) if g_elem != 0]
+            if len(gc) >= 100: break
+        
+        self.load = statistics.mean(gc)
+        print(f'Total communication load = {self.load}, alpha = {alpha}, number of rounds = {len(gc)}')
         self.val_accs = np.array(self.val_accs)
-
 
     def set_parameters(self, parameters, model: torch.nn.Module) -> None:
         """Change the parameters of the model using the given ones."""

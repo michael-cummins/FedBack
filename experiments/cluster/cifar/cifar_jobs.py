@@ -18,7 +18,7 @@ class FedADMMJob:
         self.train_loaders = train_loaders
         self.test_loader = test_loader
         self.val_loader = val_loader
-        self.t_max = t_max
+        self.t_max = 100
         self.lr = lr
         self.rho = 0.01 
         self.device = device
@@ -30,6 +30,8 @@ class FedADMMJob:
         print(rates)
 
         self.agents = []
+        print(len(rates))
+        print(self.t_max)
         self.acc_per_rate = np.zeros((len(rates), self.t_max))
         self.rate_per_rate = np.zeros((len(rates), self.t_max))
         self.loads = []
@@ -47,7 +49,7 @@ class FedADMMJob:
                         model=model,
                         loss=nn.CrossEntropyLoss(),
                         train_loader=loader,
-                        epochs=2,
+                        epochs=8,
                         device=self.device,
                         lr=self.lr,
                         data_ratio=len(loader.dataset)/total_samples
@@ -148,7 +150,7 @@ class FedLearnJob:
                         loss=nn.CrossEntropyLoss(),
                         model=model,
                         train_loader=loader,
-                        epochs=2,
+                        epochs=8,
                         device=self.device,
                         lr=self.lr
                     )

@@ -74,7 +74,7 @@ if __name__ == '__main__':
     """
     Run FedAVG and FedProx Experiments
     """
-    t_max = 200
+    t_max = 100
 
     prox_args = {
         'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
@@ -86,9 +86,10 @@ if __name__ == '__main__':
 
     ADMM_args = {
         'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
-        't_max':t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients
+        't_max': t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients
     }
 
     # for arg in args:
-    job = FedLearnJob(**prox_args)
+    # job = FedLearnJob(**avg_args)
+    job = FedADMMJob(**ADMM_args)
     job.run()
