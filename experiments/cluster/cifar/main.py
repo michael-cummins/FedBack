@@ -19,7 +19,7 @@ sns.set_theme()
 num_gpus = 1
 if torch.cuda.is_available(): 
     device = 'cuda'
-    # torch.cuda.manual_seed(42)
+    torch.cuda.manual_seed(42)
     torch.backends.cuda.matmul.allow_tf32 = True
     gpu = ''
     for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'

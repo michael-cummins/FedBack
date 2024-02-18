@@ -27,6 +27,7 @@ class FedADMMJob:
     def run(self):
         rates = np.arange(start=0.1, stop=0.6, step=0.1)
         rates = [*rates.tolist(), 1]
+        rates=[0.2]
         print(rates)
 
         self.agents = []
@@ -40,7 +41,7 @@ class FedADMMJob:
 
         for i, rate in enumerate(rates):
             for loader in self.train_loaders:
-                torch.manual_seed(78)
+                torch.manual_seed(42)
                 model = Cifar10CNN()
                 self.agents.append(
                     FedADMM(
@@ -56,7 +57,7 @@ class FedADMMJob:
                     )
                 )
 
-            torch.manual_seed(78)
+            torch.manual_seed(42)
             model = Cifar10CNN()
             # k0 = 1 if rate == 1 else 2
             k0 = 1

@@ -224,7 +224,7 @@ class ServerBase:
             wrong_count += torch.count_nonzero(out-target)
         global_acc = 1 - wrong_count/total
         return global_acc
-
+    
 
 class InexactADMM(ServerBase):
     

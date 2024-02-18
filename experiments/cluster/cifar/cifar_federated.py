@@ -109,15 +109,7 @@ if __name__ == '__main__':
     """
     Setting up Consensus Problem
     """
-
-    # deltas = list(range(0,32,4))
-    # deltas = [8,10,14]
-    # torch.autograd.detect_anomaly(True)
-    # deltas = [0, 10, 16, 20, 24, 28, 30, 32]
     
-    # rate_refs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1]
-    rate_ref=0.05
-    Kzs = [5, 3, 1]
     rates = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 1]
     # Kzs.reverse()
     lr = 0.01
@@ -125,8 +117,8 @@ if __name__ == '__main__':
     rounds = 100
     rho = 0.01
     
-    acc_per_item = np.zeros((len(Kzs), rounds))
-    rate_per_item = np.zeros((len(Kzs), rounds))
+    acc_per_item = np.zeros((len(rates), rounds))
+    rate_per_item = np.zeros((len(rates), rounds))
     loads = []
     test_accs = []
     

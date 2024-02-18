@@ -75,7 +75,8 @@ class FedConsensus:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step() 
-                
+        
+        self.dual_update()
         # self.stepper.step()
         # check for how much paramters changed
         delta_prime = 0
@@ -190,11 +191,15 @@ class FedLearn:
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
 
-    def set_parameters(self, parameters) -> None:
+    def set_parameters(self, parameters, model: nn.Module) -> nn.Module:
         """Change the parameters of the model using the given ones."""
         params_dict = zip(self.model.state_dict().keys(), parameters)
-        state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
-        self.model.load_state_dict(state_dict, strict=True)
+        if params_dict is List[torch.Tensor]: 
+            state_dict = OrderedDict({k: v for k, v in params_dict})
+        else:
+            state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+        model.load_state_dict(state_dict, strict=True)
+        return model
 
 class EventGlobalConsensusTorch:
 
@@ -292,7 +297,10 @@ class FedADMM:
 
     def update(self, global_params) -> None:
         # Solve argmin problem
-        self.primal_avg = global_params
+        self.primal_avg = self.copy_params(global_params)
+        self.dual_update()
+        using_global=True
+        if using_global: self.model = self.set_parameters(parameters=self.copy_params(global_params), model=self.model)
         for epoch in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
@@ -304,7 +312,6 @@ class FedADMM:
                 loss.backward()
                 self.optimizer.step() 
         
-        self.dual_update()
         self.update_residual()
 
     def dual_update(self) -> None:  
@@ -321,6 +328,16 @@ class FedADMM:
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
         return copy
+    
+    def set_parameters(self, parameters, model: nn.Module) -> nn.Module:
+        """Change the parameters of the model using the given ones."""
+        params_dict = zip(self.model.state_dict().keys(), parameters)
+        if params_dict is List[torch.Tensor]: 
+            state_dict = OrderedDict({k: v for k, v in params_dict})
+        else:
+            state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+        model.load_state_dict(state_dict, strict=True)
+        return model
     
 class Agent:
 
