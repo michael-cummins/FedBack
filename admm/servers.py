@@ -1,6 +1,6 @@
 import torch
 from typing import List
-from admm.utils import sum_params, add_params, average_params, scale_params
+from admm.utils import sum_params, add_params, average_params
 from admm import agents
 from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
@@ -10,7 +10,6 @@ import statistics
 import subprocess
 import re
 from admm.utils import sublist_by_fraction
-import math
 import copy
 
 
@@ -143,7 +142,7 @@ class EventADMM:
                     if delta <= 0: delta = 0
                     # Assign delta to clients and server
                     for agent in self.agents: agent.delta = delta
-
+                
                 p_meas = (1-alpha)*p_meas + alpha*global_freq
                 self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
                 for i, dz in enumerate(self.delta_z):
