@@ -210,3 +210,53 @@ class FedAgg(ServerBase):
         
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)
+
+
+class InexactADMM(ServerBase):
+    def __init__(self, clients: List[agents.FedADMM], C: float, t_max: int, 
+    model: torch.nn.Module, device: str, num_clients: int, k0: int) -> None:
+        super().__init__(t_max, model, device)
+        self.agents = clients
+        self.comm = 0
+        self.C = C
+        self.N = len(self.agents)
+        self.k0 = k0
+        # For experiment purposes
+        self.rates = []
+        self.val_accs = []
+        self.num_clients = num_clients
+
+    def spin(self, loader=None) -> None:
+        sampled_agents = self.agents
+        for i in self.pbar:
+            
+            # Collect params from sublist of clients 
+            if i%self.k0==0:
+                # Sample subset of agents
+                sampled_agents = sublist_by_fraction(agents=self.agents, fraction=self.C)
+                self.comm += len(sampled_agents)
+                global_params = average_params([agent.residual for agent in self.agents])
+
+            for clients in sampled_agents:
+                clients.update(global_params=global_params)
+
+            self.global_model = self.set_parameters(global_params, self.global_model)
+            
+            # Validate global model
+            acc_descrption = ''
+            if loader is not None:
+                with torch.no_grad():
+                    global_acc = self.validate_global(loader=loader)
+                    acc_descrption += f', Global Acc = {global_acc:.4f}'
+            
+                # Analyse communication frequency
+            freq = self.comm/(self.N)
+            self.comm = 0
+            self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption)
+
+            # For experiment purposes
+            self.rates.append(freq)
+            self.val_accs.append(global_acc.detach().cpu().numpy())
+
+        self.rates = np.array(self.rates)
+        self.val_accs = np.array(self.val_accs)

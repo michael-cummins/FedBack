@@ -13,7 +13,7 @@ from admm.models import Cifar10CNN, Model2
 from admm.utils import average_params
 from admm.data import partition_data, split_dataset
 from admm.moon_dataset import get_dataloader, partition_data
-from cifar_jobs import FedLearnJob
+from cifar_jobs import FedLearnJob, FedADMMJobs
 
 sns.set_theme()
 num_gpus = 1
@@ -87,4 +87,12 @@ if __name__ == '__main__':
 
     # for arg in args:
     job = FedLearnJob(**prox_args)
+    job.run()
+
+    admm_args = {
+        'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
+        't_max':t_max, 'lr':0.01, 'device':device
+    }
+
+    job = FedADMMJobs(**admm_args)
     job.run()
