@@ -33,33 +33,9 @@ if __name__ == '__main__':
     Data Preperation
     """
 
-    # cifar_transform = transforms.Compose([
-    #     transforms.ToTensor(),
-    #     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    # ])
-    # cifar_trainset = datasets.CIFAR10(
-    #     root='./data/cifar10', train=True,
-    #     download=True, transform=cifar_transform
-    # )
-    # cifar_testset = datasets.CIFAR10(
-    #     root='./data/cifar10', train=False,
-    #     download=True, transform=cifar_transform
-    # )
-
-    # train_dataset, val_dataset, _ = split_dataset(dataset=cifar_trainset, train_ratio=0.8, val_ratio=0.2)
-
-    # trainsets = partition_data(
-    #     num_clients=16,
-    #     iid=True,
-    #     balance=False,
-    #     power_law=False,
-    #     seed=108,
-    #     trainset=train_dataset.dataset,
-    #     labels_per_partition=10
-    # )
-    
-    num_clients=10
-    batch_size=64
+    # Best experiments - 10 clients, 64 batch size
+    num_clients=100
+    batch_size=20
     (
         _,
         _,
@@ -93,12 +69,6 @@ if __name__ == '__main__':
             labels[int(target.item())] += 1
         print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
 
-    # labels = np.zeros(10)
-    # dummy_loader = DataLoader(val_dataset, batch_size=1)
-    # for data, target in dummy_loader:
-    #     labels[int(target.item())] += 1
-    # print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
-
     labels = np.zeros(10)
     dummy_loader = DataLoader(test_global_dl.dataset, batch_size=1)
     for data, target in dummy_loader:
@@ -113,8 +83,8 @@ if __name__ == '__main__':
     rates = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 1]
     # Kzs.reverse()
     lr = 0.01
-    t_max = 300
-    rounds = 100
+    t_max = 500
+    rounds = 500
     rho = 0.01
     
     acc_per_item = np.zeros((len(rates), rounds))
@@ -145,7 +115,7 @@ if __name__ == '__main__':
                     model=model,
                     loss=nn.CrossEntropyLoss(),
                     train_loader=loader,
-                    epochs=8,
+                    epochs=3,
                     data_ratio=data_ratio,
                     device=device,
                     lr=lr,
@@ -162,11 +132,11 @@ if __name__ == '__main__':
         """
         Run the consensus algorithm
         """
-
+        print(f'Num rounds = {rounds}, acc shape = {acc_per_item.shape}')
         torch.manual_seed(42)
         global_model = Cifar10CNN()
-        server = EventADMM(clients=agents, t_max=t_max, model=global_model, device=device)
-        server.spin(loader=test_global_dl, K_x=5, K_z=5, rate_ref=item)
+        server = EventADMM(clients=agents, t_max=t_max, rounds=rounds, model=global_model, device=device)
+        server.spin(loader=test_global_dl, K_x=0, K_z=5, rate_ref=item)
         
         # For plotting purposes
         acc_per_item[i,:] = server.val_accs
@@ -177,30 +147,8 @@ if __name__ == '__main__':
         test_accs.append(acc.cpu().numpy())
 
     """
-    Plot Results
+    Save Results
     """
-
-    T = range(rounds)
-    
-    for acc_per, item in zip(acc_per_item, item_list):
-        plt.plot(T, acc_per, label=f'{item_key}={item}')
-    plt.legend(loc='center right', bbox_to_anchor=(1, 0.5))
-    plt.xlabel('Time Step')
-    plt.ylabel('Accuracy')
-    plt.title('Validation Set Accuracy')
-    plt.savefig('./images/FedEvent/fc_val_100.png')
-    plt.cla()
-    plt.clf()
-
-    for load, acc, item in zip(loads, test_accs, item_list):
-        plt.plot(acc, load, label=f'{item_key}={item}', marker='x')
-    plt.legend(loc='center right', bbox_to_anchor=(1.3, 0.5))
-    plt.xlabel('Test Accuracy')
-    plt.ylabel('Communication Load')
-    plt.title('Test/Load tradeoff')
-    plt.savefig('./images/FedEvent/fc_test_load_100.png')
-    plt.cla()
-    plt.clf()
     
     # Save plotting data
     np.save(file='figure_data/FedEvent/rates_per_delta_100', arr=rate_per_item)

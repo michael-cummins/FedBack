@@ -39,8 +39,9 @@ def get_data():
 
 if __name__ == '__main__':
     train_loader, test_loader, val_loader  = get_data()
+    torch.manual_seed(42)
     model = Cifar10CNN().to(device=device)
-    num_epochs = 30
+    num_epochs = 15
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_func = nn.CrossEntropyLoss()
     pbar  = tqdm(range(num_epochs))
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         model.eval()
         wrong_count = 0
-        total = len(test_loader.dataset)
+        total = len(val_loader.dataset)
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             out = torch.argmax(model(data), dim=1)
@@ -80,12 +81,12 @@ if __name__ == '__main__':
     
     print(f'Final accuracy of model = {global_acc}')
 
-    plt.plot(range(len(val_losses)), val_losses, label='validation')
-    plt.plot(range(len(train_losses)), train_losses, label='training')
-    plt.xlabel('Gradient Step')
-    plt.ylabel('Loss')
-    plt.title('Sudmitted Job')
-    plt.savefig('images/cifar/training_loss.png')    
+    # plt.plot(range(len(val_losses)), val_losses, label='validation')
+    # plt.plot(range(len(train_losses)), train_losses, label='training')
+    # plt.xlabel('Gradient Step')
+    # plt.ylabel('Loss')
+    # plt.title('Sudmitted Job')
+    # plt.savefig('images/cifar/training_loss.png')    
 
 
 

@@ -15,9 +15,10 @@ import copy
 
 class EventADMM:
 
-    def __init__(self, clients: List[agents.FedConsensus], t_max: int, model: torch.nn.Module, device: str) -> None:
+    def __init__(self, clients: List[agents.FedConsensus], t_max: int, rounds: int, model: torch.nn.Module, device: str) -> None:
         self.agents = clients
         self.t_max = t_max
+        self.rounds = rounds
         self.pbar = tqdm(range(t_max))
         self.comm = 0
         self.N = len(self.agents)
@@ -40,9 +41,6 @@ class EventADMM:
         delta = self.agents[0].delta
         global_comm = []
         local_comm = []
-        integral = 0
-        window_length = 10
-        train = True
 
         alpha = 0.9
         p_meas = np.zeros(self.N)
@@ -99,12 +97,9 @@ class EventADMM:
                 if d_z >= self.delta_z[i]: 
                     # self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
                     self.agents[i].recieve=True
-                    # global_freq[i] = 1
                     global_freq[i] = 1
                 else: self.agents[i].recieve=False
-            
-            print(p_meas)
-            
+                        
             # Test updated params on validation set
             acc_descrption = ''
             if loader is not None:
@@ -143,13 +138,16 @@ class EventADMM:
                     # Assign delta to clients and server
                     for agent in self.agents: agent.delta = delta
                 
-                p_meas = (1-alpha)*p_meas + alpha*global_freq
-                self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
+                # p_meas = (1-alpha)*p_meas + alpha*global_freq
+                p_meas = p_meas + global_freq
+                # p_meas = np.mean(global_freq)
+                print(f'shape of p_meas = {p_meas}')
+                self.delta_z = self.delta_z + K_z*(p_meas/(round+1) - rate_ref*np.ones(p_meas.shape))
                 for i, dz in enumerate(self.delta_z):
                     if dz <=0: self.delta_z[i] = 0
             
             gc = [(g_elem + l_elem)/2 for g_elem, l_elem in zip(global_comm, local_comm) if g_elem != 0]
-            if len(gc) >= 100: break
+            if len(gc) >= self.rounds: break
         
         self.load = statistics.mean(gc)
         print(f'Total communication load = {self.load}, alpha = {alpha}, number of rounds = {len(gc)}')
@@ -263,7 +261,7 @@ class InexactADMM(ServerBase):
                     global_acc = self.validate_global(loader=loader)
                     acc_descrption += f', Global Acc = {global_acc:.4f}'
             
-             # Analyse communication frequency
+            # Analyse communication frequency
             freq = self.comm/(self.N)
             self.comm = 0
             self.pbar.set_description(f'Comm: {freq:.3f}' + acc_descrption)
@@ -275,8 +273,10 @@ class InexactADMM(ServerBase):
         self.rates = np.array(self.rates)
         self.val_accs = np.array(self.val_accs)
 
+
 class FedAgg(ServerBase):
-    def __init__(self, clients: List[agents.FedLearn], C: float, t_max: int, model: torch.nn.Module, device: str) -> None:
+    def __init__(self, clients: List[agents.FedLearn], C: float, t_max: int,
+                  model: torch.nn.Module, device: str) -> None:
         super().__init__(t_max, model, device)
         self.agents = clients
         self.comm = 0

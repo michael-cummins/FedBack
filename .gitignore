@@ -7,6 +7,11 @@ experiments/cluster/*.out
 experiments/cluster/data/
 experiments/cluster/.data/
 experiments/cluster/cifar/data
+experiments/cluster/cifar/subs
+experiments/cluster/cifar/event_subs
+experiments/cluster/cifar/errs
+experiments/cluster/cifar/outs
+experiments/cluster/cifar/logs
 *data/
 # Distribution / packaging 
 .Python build/ 
