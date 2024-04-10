@@ -128,8 +128,8 @@ class EventADMM:
             self.pbar.set_description(f'global: ' + global_desc + acc_descrption + delta_description + delta_z_desc)
 
             # For experiment purposes
-            if local_flag:
-                self.val_accs.append(global_acc.detach().cpu().numpy())
+            # if local_flag:
+            self.val_accs.append(global_acc.detach().cpu().numpy())
             
             if adaptive_delta:
                 if local_flag:
@@ -138,11 +138,9 @@ class EventADMM:
                     # Assign delta to clients and server
                     for agent in self.agents: agent.delta = delta
                 
-                # p_meas = (1-alpha)*p_meas + alpha*global_freq
-                p_meas = p_meas + global_freq
-                # p_meas = np.mean(global_freq)
-                print(f'shape of p_meas = {p_meas}')
-                self.delta_z = self.delta_z + K_z*(p_meas/(round+1) - rate_ref*np.ones(p_meas.shape))
+                p_meas = (1-alpha)*p_meas + alpha*global_freq
+                self.rates.append(np.mean(global_freq))
+                self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
                 for i, dz in enumerate(self.delta_z):
                     if dz <=0: self.delta_z[i] = 0
             
@@ -150,8 +148,10 @@ class EventADMM:
             if len(gc) >= self.rounds: break
         
         self.load = statistics.mean(gc)
-        print(f'Total communication load = {self.load}, alpha = {alpha}, number of rounds = {len(gc)}')
         self.val_accs = np.array(self.val_accs)
+        # self.rates = np.array(self.rates)
+        # self.load = self.rates[-1]
+        print(f'Total communication load = {self.load}, alpha = {alpha}, computed from rates = {np.sum(self.rates)/(round+1)}')
 
     def set_parameters(self, parameters, model: torch.nn.Module) -> None:
         """Change the parameters of the model using the given ones."""

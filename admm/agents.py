@@ -36,13 +36,16 @@ class FedConsensus:
         # self.primal_avg = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         # self.optimizer = torch.optim.NAdam(self.model.parameters(), self.lr)
         self.train_loader = train_loader
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        try:
+            net = self.model.network
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        except:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
-        self.stepper = StepLR(optimizer=self.optimizer, gamma=0.98, step_size=1)
         self.full_loader = DataLoader(train_loader.dataset, batch_size=len(train_loader.dataset))
         self.local_seq = [0]
         self.global_seq = [0]
@@ -216,8 +219,11 @@ class FedADMM:
         self.last_communicated = self.copy_params(self.model.parameters())
         self.residual = self.copy_params(self.model.parameters())
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), self.lr, momentum=0.9)
+        try:
+            net = self.model.network
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+        except:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
         self.train_loader = train_loader
         self.criterion = loss
         self.epochs = epochs

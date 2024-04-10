@@ -2,12 +2,115 @@ import torch
 import torch.nn as nn
 
 from typing import List, Optional, Tuple
-
+from torch.utils.data import DataLoader
 import numpy as np
 import torch
-import torchvision.transforms as transforms
+from torchvision import datasets, transforms
 from torch.utils.data import ConcatDataset, Dataset, Subset, random_split
 from torchvision.datasets import MNIST
+from admm.moon_dataset import get_dataloader, partition_data
+
+def get_cifar_data(num_clients: int = 20, batch_size: int = 20):
+    (
+        _,
+        _,
+        _,
+        _,
+        net_dataidx_map,
+    ) = partition_data(
+        partition='noniid',
+        num_clients=num_clients,
+        beta=0.5,
+        num_labels=10
+    )
+    _, test_global_dl, _, _ = get_dataloader(
+        datadir='./data/cifar10',
+        train_bs=32,
+        test_bs=32,
+    )
+    trainloaders = []
+    for idx in range(num_clients):
+        train_dl, _, _, _ = get_dataloader(
+            './data/cifar10', batch_size, 32, net_dataidx_map[idx]
+        )
+        trainloaders.append(train_dl)
+    trainsets = [loader.dataset for loader in trainloaders]
+    
+    for i, dataset in enumerate(trainsets):
+        labels = np.zeros(10)
+        dummy_loader = DataLoader(dataset, batch_size=1)
+        for data, target in dummy_loader:
+            labels[int(target.item())] += 1
+        print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(test_global_dl.dataset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[int(target.item())] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    return trainloaders, test_global_dl
+
+def get_mnist_data(num_clients: int = 100, batch_size: int = 42):
+    mnist_transform = transforms.Compose([
+        transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,)), transforms.Lambda(lambda x: torch.flatten(x))
+    ])
+
+    mnist_trainset = datasets.MNIST(
+        root='./data/mnist_data', train=True,
+        download=True, transform=mnist_transform, 
+    )
+    mnist_testset = datasets.MNIST(
+        root='./data/mnist_data', train=False,
+        download=True, transform=mnist_transform
+    )
+
+    train_dataset, val_dataset, _ = split_dataset(dataset=mnist_trainset, train_ratio=0.8, val_ratio=0.2)
+
+    trainsets = mnist_partition_data(
+        num_clients=num_clients,
+        iid=False,
+        balance=True,
+        power_law=False,
+        seed=42,
+        trainset=train_dataset.dataset,
+        labels_per_partition=1
+    )
+
+    """
+    Print data to evaluate heterogeneity
+    """
+    for i, dataset in enumerate(trainsets):
+        labels = np.zeros(10)
+        dummy_loader = DataLoader(dataset, batch_size=1)
+        for data, target in dummy_loader:
+            labels[target.item()] += 1
+        print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(val_dataset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[target.item()] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    labels = np.zeros(10)
+    dummy_loader = DataLoader(mnist_testset, batch_size=1)
+    for data, target in dummy_loader:
+        labels[target.item()] += 1
+    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+
+    """
+    Build DataLoaders
+    """
+
+    train_loaders = [
+        DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0) for dataset in trainsets
+    ]
+    test_loader = DataLoader(mnist_testset, batch_size=100, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=100, shuffle=True, num_workers=0)
+
+    return train_loaders, test_loader, val_loader
+
 
 def split_dataset(dataset, train_ratio, val_ratio):
     dataset_length = len(dataset)
@@ -37,7 +140,7 @@ def _download_data() -> Tuple[Dataset, Dataset]:
 
 
 # pylint: disable=too-many-locals
-def partition_data(
+def mnist_partition_data(
     num_clients,
     labels_per_partition: int,
     iid: Optional[bool] = False,

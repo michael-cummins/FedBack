@@ -6,13 +6,14 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
+from copy import copy
 from admm.agents import FedConsensus
 from admm.servers import EventADMM
 from admm.models import Cifar10CNN, Model2
 from admm.utils import average_params
-from admm.data import partition_data, split_dataset
-from admm.moon_dataset import get_dataloader, partition_data
+# from admm.data import partition_data, split_dataset
+# from admm.moon_dataset import get_dataloader, partition_data
+from admm.data import get_cifar_data, get_mnist_data
 from cifar_jobs import FedLearnJob, FedADMMJob, FedEventJob
 
 sns.set_theme()
@@ -31,6 +32,8 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description="Example script with command line parsing.")
     parser.add_argument("--avg", action="store_true", default=False, help="Enable avg (default: False)")
+    parser.add_argument("--cifar", action="store_true", default=False, help="Enable avg (default: False)")
+    parser.add_argument("--mnist", action="store_true", default=False, help="Enable avg (default: False)")
     parser.add_argument("--prox", action="store_true", default=False, help="Enable prox (default: False)")
     parser.add_argument("--admm", action="store_true", default=False, help="Enable admm (default: False)")
     parser.add_argument("--back", action="store_true", default=False, help="Enable admm (default: False)")
@@ -46,70 +49,52 @@ if __name__ == '__main__':
     # Check for exclusive flags
     if sum([args.avg, args.prox, args.admm, args.back]) != 1:
         parser.error("Exactly one of --avg, --prox, or --admm must be set to True.")
-
-    num_clients=100
-    batch_size=20
-    (
-        _,
-        _,
-        _,
-        _,
-        net_dataidx_map,
-    ) = partition_data(
-        partition='noniid',
-        num_clients=num_clients,
-        beta=0.5,
-        num_labels=10
-    )
-    _, test_global_dl, _, _ = get_dataloader(
-        datadir='./data/cifar10',
-        train_bs=32,
-        test_bs=32,
-    )
-    trainloaders = []
-    for idx in range(num_clients):
-        train_dl, _, _, _ = get_dataloader(
-            './data/cifar10', batch_size, 32, net_dataidx_map[idx]
-        )
-        trainloaders.append(train_dl)
-    trainsets = [loader.dataset for loader in trainloaders]
+    if args.cifar and args.mnist: parser.error('Can only specify one experiment, eith cifar or mnist')
+    if not args.cifar and not args.mnist: parser.error('Must specify eith cifar or mnist')
     
-    for i, dataset in enumerate(trainsets):
-        labels = np.zeros(10)
-        dummy_loader = DataLoader(dataset, batch_size=1)
-        for data, target in dummy_loader:
-            labels[int(target.item())] += 1
-        print(f'Dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
-
-    labels = np.zeros(10)
-    dummy_loader = DataLoader(test_global_dl.dataset, batch_size=1)
-    for data, target in dummy_loader:
-        labels[int(target.item())] += 1
-    print(f'Validation dataset {i} distribution: {labels} - num_samples = {labels.sum()}')
+    if args.cifar:
+        num_clients = 100
+        batch_size = 20
+        train_loaders, test_loader = get_cifar_data(num_clients=num_clients, batch_size=batch_size)
+        val_loader = copy(test_loader)
+    elif args.mnist:
+        num_clients = 100
+        batch_size = 42
+        train_loaders, test_loader, val_loader = get_mnist_data(num_clients=num_clients, batch_size=batch_size)
 
     """
     Run FedAVG and FedProx Experiments
     """
-
-    t_max = 500
-    epochs = 3
     rate = args.rate
-
+    if args.cifar:
+        t_max = 500
+        epochs = 3
+        if rate <= 0.2 and rate > 0.1: t_max = int(1.5*t_max)
+        elif rate <= 0.05: t_max = int(3*t_max)
+        elif rate <= 0.1: t_max = int(2*t_max)
+    if args.mnist:
+        t_max = 150
+        epochs = 2
+    
+    
     prox_args = {
-        'train_loaders': trainloaders, 'test_loader': test_global_dl, 'val_loader': test_global_dl,
-        't_max': t_max, 'lr': 0.01, 'device': device, 'prox': True, 'epochs': epochs, 'rate': rate
+        'train_loaders': train_loaders, 'test_loader': test_loader, 'val_loader': val_loader,
+        't_max': t_max, 'lr': 0.01, 'device': device, 'prox': True, 'epochs': epochs, 'rate': rate,
+        'cifar': args.cifar, 'mnist':args.mnist
     }
     avg_args = prox_args.copy()
     avg_args['prox'] = False
 
     ADMM_args = {
-        'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
-        't_max': t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients, 'epochs': epochs, 'rate': rate
+        'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
+        't_max': t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients, 'epochs': epochs, 'rate': rate,
+        'cifar': args.cifar, 'mnist':args.mnist
     }
 
     back_args = {
-        'train_loaders':trainloaders, 'test_loader':test_global_dl, 'val_loader': test_global_dl,
-        't_max': t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients, 'epochs': epochs, 'rate': rate
+        'train_loaders':train_loaders, 'test_loader':test_loader, 'val_loader': val_loader,
+        't_max': t_max, 'lr':0.01, 'device':device, 'num_agents':num_clients, 'epochs': epochs, 'rate': rate,
+        'cifar': args.cifar, 'mnist':args.mnist
     }
 
     if args.prox: job = FedLearnJob(**prox_args)
