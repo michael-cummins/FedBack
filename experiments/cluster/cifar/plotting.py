@@ -73,11 +73,30 @@ def load_acc(dirs: List, save_file: str, max_load: float):
     plt.cla()
     plt.clf()
 
+def plot_rate(rate: int, exp: str):
+    data_dir = f'figure_data/{exp}/FedBack/'
+    save_dir = f'images/{exp}/fedback_rates/'
+    rate_file = f'rates_{rate}.npy'
+    rates = np.load(data_dir+rate_file)
+    plt.plot(range(len(rates)), rates, label='FedBack', color='orange')
+    plt.plot(range(len(rates)), (rate/100)*np.ones(rates.shape), linestyle='dashed', color='black', label='Reference')
+    plt.xlabel('Round')
+    plt.ylabel('Communication Load')
+    plt.title('Communication Load per Round')
+    plt.legend()
+    # if rate <= 20: plt.ylim([0,0.3])
+    # elif rate <= 60: plt.ylim([0,0.7])
+    plt.show()
+    plt.savefig(save_dir+f'rate_curve_{rate}')
+    plt.cla()
+    plt.clf()
+
 def total_comm(dirs: List, rate: int, thresh: float, exp:bool):
     save_dir = f'images/{exp}/joint_acc/'
     data_dir = f'figure_data/'
     acc_file = f'accs_{rate}'
     rate_file = f'rates_{rate}.npy'
+    load_file = f'loads_{rate}.npy'
     vals = []
 
     for dir in dirs:
@@ -89,25 +108,44 @@ def total_comm(dirs: List, rate: int, thresh: float, exp:bool):
                 val = val[0]
                 try:
                     above_thresh = np.where(val > thresh)[0][0]
-                except: break
+                except:
+                    comm_rate = rate 
+                    break
                 if dir == 'FedBack/':
                     rates = np.load(data_dir+exp+'/'+dir+rate_file)
                     cummulative_comm = np.sum(rates[:above_thresh+1])*100
-                else: cummulative_comm = rate*(above_thresh+1)
+                    comm_rate = np.load(data_dir+exp+'/'+dir+load_file)[0]*100
+                else: 
+                    cummulative_comm = rate*(above_thresh+1)
+                    comm_rate = rate
                 break
         if cummulative_comm != 'N/A': cummulative_comm = int(cummulative_comm)
-        print(f'Total communication for {exp} {dir[:-1]} to achieve {thresh*100}% accuracy at rate {rate} = {cummulative_comm}')
+        print(f'Total communication for {exp} {dir[:-1]} to achieve {int(thresh*100)}% accuracy at rate {comm_rate:.2f} = {cummulative_comm}')
             
 
 if __name__ == '__main__':
     sns.set_theme()
-    exp = 'mnist'
+    
+    print('CIFAR')
+    exp = 'cifar'
     dirs = ['FedADMM/', 'FedBack/', 'FedAVG/', 'FedProx/']
-    rates = [5,10,15,20,30,40,50,60,70,80,90,100]
+    rates = [5,10,15,20,30,40,50,60,70,80,90]
     for rate in rates:
         multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
-        total_comm(dirs=dirs, rate=rate, thresh=0.85, exp=exp)
+        total_comm(dirs=dirs, rate=rate, thresh=0.78, exp=exp)
+        plot_rate(rate=rate, exp=exp)
         print('\n')
+    
+    print('MNIST')
+    exp = 'mnist'
+    dirs = ['FedADMM/', 'FedBack/', 'FedAVG/', 'FedProx/']
+    rates = [5,10,15,20]
+    for rate in rates:
+        multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
+        plot_rate(rate=rate, exp=exp)
+        total_comm(dirs=dirs, rate=rate, thresh=0.90, exp=exp)
+        print('\n')
+        
     
     
     
