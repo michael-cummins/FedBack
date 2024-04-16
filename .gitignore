@@ -2,17 +2,13 @@ __pycache__
 *.py[cod]
 *$py.class
 
-experiments/cluster/*.err
-experiments/cluster/*.out
-experiments/cluster/data/
-experiments/cluster/.data/
-experiments/cluster/cifar/data
-experiments/cluster/cifar/subs
-experiments/cluster/cifar/event_subs
-experiments/cluster/cifar/errs
-experiments/cluster/cifar/outs
-experiments/cluster/cifar/logs
-*data/
+*.err
+*.out
+*.log
+*.sub
+*.npy
+*.png
+*.tex
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 
