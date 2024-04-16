@@ -13,7 +13,13 @@ setup(
     packages=find_packages(),
     url='https://github.com/michael-cummins/ADMM',
     install_requires=[
-  
+        'torch>=2',
+        'torchvision',
+        'matplotlib',
+        'seaborn',
+        'natsort',
+        'tikzplotlib',
+        'tqdm',
     ],
     classifiers=[
         "Programming Language :: Python :: 3"
