@@ -5,7 +5,6 @@ __pycache__
 *.err
 *.out
 *.log
-*.sub
 *.npy
 *.png
 *.tex
@@ -35,7 +34,6 @@ pip-delete-this-directory.txt
 *.log
 *.err
 *.out
-*.sub
 # Unit test / coverage reports 
 htmlcov/ 
 .tox/ 

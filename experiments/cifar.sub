@@ -1,0 +1,9 @@
+executable = /usr/bin/python3
+arguments = cifar.py
+error = errs/cifar.err
+output = outs/cifar.out
+log = logs/cifar.log
+request_memory = 64096
+request_cpus = 1
+request_gpus = 1
+queue

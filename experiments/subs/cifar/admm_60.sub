@@ -1,0 +1,9 @@
+executable = /usr/bin/python3
+arguments = main.py --cifar --admm --rate 0.6
+error = errs/cifar/admm_60.err
+output = outs/cifar/admm_60.out
+log = logs/cifar/admm_60.log
+request_memory = 64096
+request_cpus = 1
+request_gpus = 1
+queue

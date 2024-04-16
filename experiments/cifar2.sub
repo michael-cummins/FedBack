@@ -1,0 +1,9 @@
+executable = /usr/bin/python3
+arguments = cifar_federated.py
+error = cifar2.err
+output = cifar2.out
+log = cifar2.log
+request_memory = 64096
+request_cpus = 1
+request_gpus = 1
+queue
