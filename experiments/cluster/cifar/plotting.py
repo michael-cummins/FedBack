@@ -83,6 +83,7 @@ def plot_rate(rate: int, exp: str):
     plt.xlabel('Round')
     plt.ylabel('Communication Load')
     plt.title('Communication Load per Round')
+    plt.ylim([0,1.1])
     plt.legend()
     # if rate <= 20: plt.ylim([0,0.3])
     # elif rate <= 60: plt.ylim([0,0.7])
@@ -97,6 +98,7 @@ def total_comm(dirs: List, rate: int, thresh: float, exp:bool):
     acc_file = f'accs_{rate}'
     rate_file = f'rates_{rate}.npy'
     load_file = f'loads_{rate}.npy'
+    back_rate = None
     vals = []
 
     for dir in dirs:
@@ -114,14 +116,16 @@ def total_comm(dirs: List, rate: int, thresh: float, exp:bool):
                 if dir == 'FedBack/':
                     rates = np.load(data_dir+exp+'/'+dir+rate_file)
                     cummulative_comm = np.sum(rates[:above_thresh+1])*100
+                    back_rate = cummulative_comm
                     comm_rate = np.load(data_dir+exp+'/'+dir+load_file)[0]*100
                 else: 
                     cummulative_comm = rate*(above_thresh+1)
-                    comm_rate = rate
+                    comm_rate = rate 
                 break
         if cummulative_comm != 'N/A': cummulative_comm = int(cummulative_comm)
-        print(f'Total communication for {exp} {dir[:-1]} to achieve {int(thresh*100)}% accuracy at rate {comm_rate:.2f} = {cummulative_comm}')
-            
+        print(f'Total communication for {exp} {dir[:-1]} to achieve {int(thresh*100)}% accuracy at rate {comm_rate:.2f} = {cummulative_comm}')        
+    
+    return back_rate
 
 if __name__ == '__main__':
     sns.set_theme()
@@ -129,22 +133,33 @@ if __name__ == '__main__':
     print('CIFAR')
     exp = 'cifar'
     dirs = ['FedADMM/', 'FedBack/', 'FedAVG/', 'FedProx/']
-    rates = [5,10,15,20,30,40,50,60,70,80,90]
+    rates = [5,10,15,20,30,40,50,60,70,80]
+    back_rates= []
     for rate in rates:
         multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
-        total_comm(dirs=dirs, rate=rate, thresh=0.78, exp=exp)
+        comm_rate = total_comm(dirs=dirs, rate=rate, thresh=0.78, exp=exp)
+        if rate is not None: back_rates.append(comm_rate)
         plot_rate(rate=rate, exp=exp)
         print('\n')
     
-    print('MNIST')
-    exp = 'mnist'
-    dirs = ['FedADMM/', 'FedBack/', 'FedAVG/', 'FedProx/']
-    rates = [5,10,15,20]
-    for rate in rates:
-        multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
-        plot_rate(rate=rate, exp=exp)
-        total_comm(dirs=dirs, rate=rate, thresh=0.90, exp=exp)
-        print('\n')
+    plt.plot(range(len(back_rates)), back_rates)
+    plt.xlabel('Communication load (%)')
+    plt.ylabel('Number of events')
+    plt.title('Target accuracy = 78%')
+    plt.show()
+    plt.savefig('images/cifar/loads_event.png')
+    plt.cla()
+    plt.clf()
+
+    # print('MNIST')
+    # exp = 'mnist'
+    # dirs = ['FedADMM/', 'FedBack/', 'FedAVG/', 'FedProx/']
+    # rates = [5,10,15,20,30,40,50,60,70,80,90]
+    # for rate in rates:
+    #     multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
+    #     plot_rate(rate=rate, exp=exp)
+    #     total_comm(dirs=dirs, rate=rate, thresh=0.90, exp=exp)
+    #     print('\n')
         
     
     

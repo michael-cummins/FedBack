@@ -10,7 +10,7 @@ from torch.utils.data import ConcatDataset, Dataset, Subset, random_split
 from torchvision.datasets import MNIST
 from admm.moon_dataset import get_dataloader, partition_data
 
-def get_cifar_data(num_clients: int = 20, batch_size: int = 20):
+def get_cifar_data(num_clients: int = 100, batch_size: int = 20):
     (
         _,
         _,
