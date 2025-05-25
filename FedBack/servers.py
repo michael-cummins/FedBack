@@ -7,13 +7,14 @@ from torch.utils.data.dataloader import DataLoader
 import numpy as np
 from collections import OrderedDict
 import statistics
-import subprocess
-import re
 from FedBack.utils import sublist_by_fraction
 import copy
 
 
 class EventADMM:
+    """
+    Server-side routine for FedBack
+    """
 
     def __init__(self, clients: List[agents.FedConsensus], t_max: int, rounds: int, model: torch.nn.Module, device: str) -> None:
         self.agents = clients
@@ -33,41 +34,25 @@ class EventADMM:
         self.local_res = [self.get_parameters(self.global_model) for _ in range(self.N)]
         self.cumm_global = 0
         self.delta_z = np.zeros(self.N)
-        # self.delta_z = 0
     
-    def spin(self, K_x, K_z, rate_ref, loader=None) -> None:
+    def spin(self, K, rate_ref, loader=None) -> None:
 
-        adaptive_delta=True
-        delta = self.agents[0].delta
         global_comm = []
         local_comm = []
 
         alpha = 0.9
         p_meas = np.zeros(self.N)
         global_freq = np.ones(self.N)
-        # p_meas = 0
 
         for round in self.pbar:
-
-            global_desc = ''
-            for elem in global_freq:
-                global_desc += str(int(elem))
             
             global_comm.append(sum(global_freq)/len(global_freq))
             
             # Primal Update
-            D = []
-            delta_description=', '
-            local_flag = False
             for i, agent in enumerate(self.agents):
                 if agent.recieve:
-                    d , global_indicator = agent.primal_update(round, params=self.global_params)
-                    agent.recieve=False
-                    local_flag = True
-                else: 
-                    d = 0
-                D.append(d)            
-            delta_description += f', d_x:{delta:.1f}, max: {max(D):.2f}, med: {statistics.median(D):.2f}'
+                    agent.primal_update(round, params=self.global_params)
+                    agent.recieve = False
             if self.device == 'cuda': torch.cuda.synchronize()
                 
             # Residual update in the case of communication
@@ -78,16 +63,16 @@ class EventADMM:
                     comm_list.append(i)
                     self.comm += 1
                     add_params(self.local_res[i], agent.residual)
-                    agent.broadcast=False
+                    agent.broadcast = False
             
+            # Aggregate parameters from clients
             self.global_params = average_params(self.local_res)
             local_freq = self.comm/self.N
             if self.device == 'cuda': torch.cuda.synchronize()
             local_comm.append(local_freq)
 
-            # Calculating delta_z
+            # Calculating delta based on new server parameters
             global_freq = np.zeros(self.N)
-            # global_freq = 0
             for i, res in enumerate(self.local_res):
                 d_z = 0
                 for old_z, new_z in zip(res, self.global_params):
@@ -95,62 +80,36 @@ class EventADMM:
                         d_z += torch.norm(new_z - old_z, p='fro').item()**2
                 d_z = np.sqrt(d_z)
                 if d_z >= self.delta_z[i]: 
-                    # self.last_communicated = [torch.zeros(param.shape).to(self.device).copy_(param) for param in self.global_params]
+                    # Since client i meets the threshold, they participate in the next round
                     self.agents[i].recieve=True
                     global_freq[i] = 1
                 else: self.agents[i].recieve=False
                         
             # Test updated params on validation set
-            acc_descrption = ''
             if loader is not None:
                 # Get gloabl variable Z and copy to a network for validation
                 with torch.no_grad():
                     self.global_model = self.set_parameters(self.global_params, self.global_model)
                     global_acc = self.validate_global(loader=loader)
-                    acc_descrption += f', Global Acc = {global_acc:.4f}'
+                    acc_descrption = f'{global_acc:.4f}'
             if self.device == 'cuda': torch.cuda.synchronize()
             
-            # Check RAM
-            if self.device == 'cuda':
-                command = 'nvidia-smi'
-                p = subprocess.check_output(command)
-                ram_using = re.findall(r'\b\d+MiB+ /', str(p))[0][:-5]
-                GPU_desctiption = f', ram = {ram_using}'
-            else: GPU_desctiption = ''
-            
-            # Analyse communication frequency and log stats
-
-            delta_z_desc = ', dz: ('
-            for dz in self.delta_z:
-                delta_z_desc += f'{dz:.1f} '
-            delta_z_desc + ')'
-            # delta_z_desc = f', dz: {self.delta_z}'
-            self.pbar.set_description(f'global: ' + global_desc + acc_descrption + delta_description + delta_z_desc)
-
-            # For experiment purposes
-            # if local_flag:
+     
+            self.pbar.set_description(f'Accuracy: {acc_descrption}')
             self.val_accs.append(global_acc.detach().cpu().numpy())
             
-            if adaptive_delta:
-                if local_flag:
-                    delta = delta + K_x*(local_freq - rate_ref)
-                    if delta <= 0: delta = 0
-                    # Assign delta to clients and server
-                    for agent in self.agents: agent.delta = delta
-                
-                p_meas = (1-alpha)*p_meas + alpha*global_freq
-                self.rates.append(np.mean(global_freq))
-                self.delta_z = self.delta_z + K_z*(p_meas - rate_ref*np.ones(p_meas.shape))
-                for i, dz in enumerate(self.delta_z):
-                    if dz <=0: self.delta_z[i] = 0
+            # Update delta for each client
+            p_meas = (1-alpha)*p_meas + alpha*global_freq
+            self.rates.append(np.mean(global_freq))
+            self.delta_z = self.delta_z + K*(p_meas - rate_ref*np.ones(p_meas.shape))
+            for i, dz in enumerate(self.delta_z):
+                if dz <=0: self.delta_z[i] = 0
             
             gc = [(g_elem + l_elem)/2 for g_elem, l_elem in zip(global_comm, local_comm) if g_elem != 0]
             if len(gc) >= self.rounds: break
         
         self.load = statistics.mean(gc)
         self.val_accs = np.array(self.val_accs)
-        # self.rates = np.array(self.rates)
-        # self.load = self.rates[-1]
         print(f'Total communication load = {self.load}, alpha = {alpha}, computed from rates = {np.sum(self.rates)/(round+1)}')
 
     def set_parameters(self, parameters, model: torch.nn.Module) -> None:

@@ -58,13 +58,13 @@ if __name__ == '__main__':
     """
     rate = args.rate
     if args.cifar:
-        t_max = 500
+        t_max = 2
         epochs = 3
         if rate <= 0.2 and rate > 0.1: t_max = int(1.5*t_max)
         elif rate <= 0.05: t_max = int(3*t_max)
         elif rate <= 0.1: t_max = int(2*t_max)
     if args.mnist:
-        t_max = 150
+        t_max = 50
         epochs = 2
     
     

@@ -113,6 +113,6 @@ GitHub.sublime-settings
 !.vscode/launch.json 
 !.vscode/extensions.json 
 .history
+experiments/figure_data/
 experiments/data/
 **/outputs
-

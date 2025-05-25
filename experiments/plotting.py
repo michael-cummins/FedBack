@@ -21,6 +21,7 @@ def list_files_in_folder(folder_path):
 
 def multiple_acc(dirs: List, rate: int, save_file: str, exp:bool):
     save_dir = f'images/{exp}/joint_acc/'
+    os.makedirs(save_dir, exist_ok=True)
     data_dir = f'figure_data/'
     file = f'accs_{rate}'
     vals = []
@@ -138,7 +139,7 @@ if __name__ == '__main__':
         multiple_acc(dirs, rate=rate, save_file=f'rate_{rate}', exp=exp)
         comm_rate = total_comm(dirs=dirs, rate=rate, thresh=0.78, exp=exp)
         if rate is not None: back_rates.append(comm_rate)
-        plot_rate(rate=rate, exp=exp)
+        # plot_rate(rate=rate, exp=exp)
         print('\n')
     
     plt.plot(range(len(back_rates)), back_rates)

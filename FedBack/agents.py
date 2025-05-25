@@ -12,7 +12,7 @@ class FedConsensus:
     Distributed event-based ADMM for federated learning
     """
     
-    def __init__(self, rho: int, N: int, delta: int, loss: nn.Module, model: nn.Module,
+    def __init__(self, rho: int, N: int, loss: nn.Module, model: nn.Module,
                  train_loader: DataLoader, epochs: int, device: str, 
                  lr: float, data_ratio: float, global_weight: float) -> None:        
         
@@ -21,7 +21,6 @@ class FedConsensus:
         self.model = model.to(device)
         self.rho=rho
         self.N=N
-        self.delta = delta
         self.broadcast = True
         self.recieve = True
         self.global_weight = global_weight
@@ -79,22 +78,16 @@ class FedConsensus:
         self.dual_update()
         # self.stepper.step()
         # check for how much paramters changed
-        delta_prime = 0
-        for old_param, updated_param, dual_param in zip(self.last_communicated_prime, self.model.parameters(), self.lam):
-            with torch.no_grad():
-                delta_prime += torch.norm(old_param.data - updated_param.data - dual_param.data, p='fro').item()**2
-        delta_prime = np.sqrt(delta_prime)
+        # delta_prime = 0
+        # for old_param, updated_param, dual_param in zip(self.last_communicated_prime, self.model.parameters(), self.lam):
+        #     with torch.no_grad():
+        #         delta_prime += torch.norm(old_param.data - updated_param.data - dual_param.data, p='fro').item()**2
+        # delta_prime = np.sqrt(delta_prime)
 
-        # If "send on delta" then update residual and broadcast to other agents
-        if delta_prime >= self.delta:      
-            self.update_residual()
-            self.last_communicated_prime = self.copy_params(self.model.parameters())
-            add_params(self.last_communicated_prime, self.lam)
-            self.broadcast = True
-        else:
-            self.broadcast = False
-
-        return delta_prime, using_global
+        self.update_residual()
+        self.last_communicated_prime = self.copy_params(self.model.parameters())
+        add_params(self.last_communicated_prime, self.lam)
+        self.broadcast = True
     
     def dual_update(self) -> None:  
         primal_copy = self.copy_params(self.model.parameters())

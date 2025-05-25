@@ -8,6 +8,7 @@ from FedBack.models import Cifar10CNN, FCNet
 from FedBack.agents import FedLearn, FedConsensus, FedADMM
 from FedBack.servers import FedAgg, EventADMM, InexactADMM
 from FedBack.utils import average_params
+import os
 
 class FedBackJob:
 
@@ -38,7 +39,6 @@ class FedBackJob:
         else: items = [self.rate]
         
         acc_per_item = np.zeros((len(items), self.t_max))
-        rate_per_item = np.zeros((len(items), self.t_max))
         loads = []
         test_accs = []
         
@@ -48,9 +48,9 @@ class FedBackJob:
 
         if self.cifar: data_dir = 'figure_data/cifar/FedBack/'
         elif self.mnist: data_dir = 'figure_data/mnist/FedBack/'
+        os.makedirs(data_dir, exist_ok=True)
 
         for i, item in enumerate(items):
-            print(f'Testing with K_z = {item} and initialising delta_z = 0 and using leaky PI control')
             
             agents: List[FedConsensus] = []
             for j, loader in enumerate(self.train_loaders):
@@ -63,7 +63,6 @@ class FedBackJob:
                 agents.append(
                     FedConsensus(
                         N=len(self.train_loaders),
-                        delta=0,
                         rho=self.rho/(data_ratio*self.num_agents),
                         model=model,
                         loss=nn.CrossEntropyLoss(),
@@ -87,10 +86,12 @@ class FedBackJob:
             torch.manual_seed(42)
             if self.cifar: 
                 global_model = Cifar10CNN()
+                K = 5
             elif self.mnist: 
                 global_model = FCNet(in_channels=784, hidden1=200, hidden2=None, out_channels=10)
+                K = 2
             server = EventADMM(clients=agents, t_max=self.t_max, rounds=self.t_max, model=global_model, device=self.device)
-            server.spin(loader=self.test_loader, K_x=0, K_z=5, rate_ref=item)
+            server.spin(loader=self.test_loader, K=K, rate_ref=item)
             
             # For plotting purposes
             acc_per_item[i,:] = server.val_accs
@@ -140,6 +141,7 @@ class FedADMMJob:
 
         if self.cifar: data_dir = 'figure_data/cifar/FedADMM/'
         if self.mnist: data_dir = 'figure_data/mnist/FedADMM/'
+        os.makedirs(data_dir, exist_ok=True)
 
         for i, rate in enumerate(rates):
             for loader in self.train_loaders:
@@ -213,11 +215,10 @@ class FedLearnJob:
         self.test_accs = []
 
         if self.cifar:
-            image_dir = './images/cifar/FedProx/' if self.prox else './images/cifar/FedAVG/'
             figure_data_dir = './figure_data/cifar/FedProx/' if self.prox else './figure_data/cifar/FedAVG/'
         else:
-            image_dir = './images/mnist/FedProx/' if self.prox else './images/mnist/FedAVG/'
             figure_data_dir = './figure_data/mnist/FedProx/' if self.prox else './figure_data/mnist/FedAVG/'
+        os.makedirs(figure_data_dir, exist_ok=True)
 
         for i, rate in enumerate(rates):
             for loader in self.train_loaders:
