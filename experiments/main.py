@@ -3,7 +3,7 @@ import argparse
 from copy import copy
 
 from FedBack.data import get_cifar_data, get_mnist_data
-from jobs import FedLearnJob, FedADMMJob, FedEventJob
+from jobs import FedLearnJob, FedADMMJob, FedBackJob
 
 num_gpus = 1
 
@@ -15,7 +15,9 @@ if torch.cuda.is_available():
     for i in range(num_gpus): gpu += f'{torch.cuda.get_device_name(i)}\n'
     print(gpu)
 else:
-    raise Exception('GPU not available')
+    # raise Warning('GPU not available')
+    print('GPU not available, using CPU')
+    device = 'cpu'
 
 if __name__ == '__main__':
     
@@ -89,6 +91,6 @@ if __name__ == '__main__':
     if args.prox: job = FedLearnJob(**prox_args)
     elif args.avg: job = FedLearnJob(**avg_args)
     elif args.admm: job = FedADMMJob(**ADMM_args)
-    elif args.back: job = FedEventJob(**back_args)
+    elif args.back: job = FedBackJob(**back_args)
     else: raise ValueError('Need to select an algorithm (avg, prox, admm)')
     job.run()

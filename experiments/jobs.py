@@ -9,7 +9,7 @@ from FedBack.agents import FedLearn, FedConsensus, FedADMM
 from FedBack.servers import FedAgg, EventADMM, InexactADMM
 from FedBack.utils import average_params
 
-class FedEventJob:
+class FedBackJob:
 
     def __init__(self, train_loaders: List[DataLoader], test_loader: DataLoader, val_loader: DataLoader,
                 t_max: int, lr: float, device: str, num_agents: int, epochs: int,
@@ -79,7 +79,6 @@ class FedEventJob:
             # Broadcast average to all agents and check if equal
             for agent in agents:
                 agent.primal_avg = average_params([agent.model.parameters() for agent in agents])
-                # print(f'Agents device = {next(agent.model.parameters()).device}')
             if self.device == 'cuda': torch.cuda.synchronize()
 
             """
@@ -88,10 +87,8 @@ class FedEventJob:
             torch.manual_seed(42)
             if self.cifar: 
                 global_model = Cifar10CNN()
-                K_z=5
             elif self.mnist: 
                 global_model = FCNet(in_channels=784, hidden1=200, hidden2=None, out_channels=10)
-                K_z=2
             server = EventADMM(clients=agents, t_max=self.t_max, rounds=self.t_max, model=global_model, device=self.device)
             server.spin(loader=self.test_loader, K_x=0, K_z=5, rate_ref=item)
             
@@ -99,7 +96,6 @@ class FedEventJob:
             acc_per_item[i,:] = server.val_accs
             rates = server.rates
             acc = server.validate_global(loader=self.test_loader)
-            # print(f'Load for {item_key} {item} = {load} | Test accuracy = {acc}')
             loads.append(server.load)
             test_accs.append(acc.cpu().numpy())
 

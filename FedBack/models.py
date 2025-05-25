@@ -1,29 +1,5 @@
 import torch
 import torch.nn as nn
-
-class Model2(nn.Module):
-    def __init__(self):
-        super(Model2, self).__init__()
-
-        self.conv = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=5, padding=2, bias=True),
-            nn.MaxPool2d((2,2)),
-            nn.Conv2d(32, 64, kernel_size=5, padding=2, bias=True),
-            nn.MaxPool2d((2,2)),
-        )
-        self.linear = nn.Sequential(
-            nn.Linear(4096, 256),
-            nn.ReLU(),
-            nn.Linear(256, 10),
-            nn.Softmax()
-        )
-
-    @torch.autocast(device_type="cuda")   
-    def forward(self, x):
-        x = self.conv(x)
-        x = x.reshape(x.shape[0], -1)
-        x = self.linear(x)
-        return x
     
 class Cifar10CNN(nn.Module):
     def __init__(self):
@@ -52,45 +28,13 @@ class Cifar10CNN(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(1024, 512),
             nn.LeakyReLU(),
-            nn.Linear(512, 10))
+            nn.Linear(512, 10)
+        )
     
     # @torch.autocast(device_type="cuda")
     def forward(self, xb):
         logits = self.network(xb)
-      
         return logits
-
-class MNistCNN(nn.Module):
-
-    def __init__(self, num_classes=10) -> None:
-        super().__init__()
-
-        self.conv1 = nn.Sequential(         
-            nn.Conv2d(
-                in_channels=1,              
-                out_channels=4,            
-                kernel_size=2,       
-                stride=2                      
-            ),                              
-            nn.ReLU(),                      
-            nn.MaxPool2d(kernel_size=2),    
-        )
-        self.conv2 = nn.Sequential(         
-            nn.Conv2d(
-                in_channels=4,              
-                out_channels=10,            
-                kernel_size=2,                      
-            ),                              
-            nn.ReLU(),                      
-            nn.MaxPool2d(kernel_size=2),    
-        )
-        self.fc = FCNet(in_channels=196, hidden1=50, out_channels=num_classes)
-    
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.conv1(x)
-        # x = self.conv2(x)
-        x = x.view(x.size(0), -1)
-        return self.fc(x)
 
 class FCNet(nn.Module):
 
@@ -109,12 +53,3 @@ class FCNet(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
-class Dummy(nn.Module):
-
-    def __init__(self, x) -> None:
-        super().__init__()
-        self.params = nn.Parameter(x)
-
-    def forward(self) -> torch.Tensor:
-        return self.params

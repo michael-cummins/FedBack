@@ -3,7 +3,6 @@ import torchvision
 from torchvision.datasets import CIFAR10
 import numpy as np
 import torchvision.transforms as transforms
-import os
 
 def load_cifar10_data(datadir='./data/cifar10/'):
     """Load CIFAR10 dataset."""
