@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --mnist --back --rate 0.05
-error = errs/mnist/back_5.err
-output = outs/mnist/back_5.out
-log = logs/mnist/back_5.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

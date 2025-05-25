@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --mnist --avg --rate 0.05
-error = errs/mnist/avg_5.err
-output = outs/mnist/avg_5.out
-log = logs/mnist/avg_5.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

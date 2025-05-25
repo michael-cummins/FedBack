@@ -1,8 +1,0 @@
-executable = /usr/bin/python3
-arguments = plotting.py
-error = errs/plotting.err
-output = outs/plotting.out
-log = logs/plotting.log
-request_memory = 8096
-request_cpus = 1
-queue

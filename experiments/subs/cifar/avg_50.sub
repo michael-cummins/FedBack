@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --cifar --avg --rate 0.5
-error = errs/cifar/avg_50.err
-output = outs/cifar/avg_50.out
-log = logs/cifar/avg_50.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

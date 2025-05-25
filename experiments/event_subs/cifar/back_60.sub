@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --cifar --back --rate 0.6
-error = errs/cifar/back_60.err
-output = outs/cifar/back_60.out
-log = logs/cifar/back_60.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

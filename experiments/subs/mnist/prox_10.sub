@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --mnist --prox --rate 0.1
-error = errs/mnist/prox_10.err
-output = outs/mnist/prox_10.out
-log = logs/mnist/prox_10.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

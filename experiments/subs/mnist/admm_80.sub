@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --mnist --admm --rate 0.8
-error = errs/mnist/admm_80.err
-output = outs/mnist/admm_80.out
-log = logs/mnist/admm_80.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue

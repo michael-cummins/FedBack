@@ -1,9 +1,0 @@
-executable = /usr/bin/python3
-arguments = main.py --cifar --prox --rate 0.8
-error = errs/cifar/prox_80.err
-output = outs/cifar/prox_80.out
-log = logs/cifar/prox_80.log
-request_memory = 64096
-request_cpus = 1
-request_gpus = 1
-queue
