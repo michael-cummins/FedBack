@@ -4,7 +4,6 @@ import numpy as np
 import os
 from natsort import natsorted
 from typing import List
-import tikzplotlib
 
 def list_files_in_folder(folder_path):
     # Check if the provided path is a directory
@@ -43,7 +42,6 @@ def multiple_acc(dirs: List, rate: int, save_file: str, exp:bool):
     plt.ylim([0,1])
     # plt.xlim([0,len(val)])
     plt.savefig(save_dir+save_file)
-    tikzplotlib.save(save_dir+save_file+'.tex')
     plt.cla()
     plt.clf()
 

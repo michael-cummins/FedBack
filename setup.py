@@ -4,10 +4,10 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='admm',
+    name='fedback',
     version='0.0.1',
     author='Michael Cummins',
-    description='Federated Learning via ADMM',
+    description='Controlling Participation in Federated Learning',
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
@@ -18,7 +18,6 @@ setup(
         'matplotlib',
         'seaborn',
         'natsort',
-        'tikzplotlib',
         'tqdm',
     ],
     classifiers=[
