@@ -2,12 +2,12 @@ from typing import List
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from admm.models import Cifar10CNN, FCNet
-from admm.agents import FedLearn, FedConsensus, FedADMM
-from admm.servers import FedAgg, EventADMM, InexactADMM
-from admm.utils import average_params
-from typing import List
 import numpy as np
+
+from FedBack.models import Cifar10CNN, FCNet
+from FedBack.agents import FedLearn, FedConsensus, FedADMM
+from FedBack.servers import FedAgg, EventADMM, InexactADMM
+from FedBack.utils import average_params
 
 class FedEventJob:
 

@@ -1,23 +1,12 @@
 import torch
-import torch.nn as nn
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
 from copy import copy
-from admm.agents import FedConsensus
-from admm.servers import EventADMM
-from admm.models import Cifar10CNN, Model2
-from admm.utils import average_params
-# from admm.data import partition_data, split_dataset
-# from admm.moon_dataset import get_dataloader, partition_data
-from admm.data import get_cifar_data, get_mnist_data
+
+from FedBack.data import get_cifar_data, get_mnist_data
 from jobs import FedLearnJob, FedADMMJob, FedEventJob
 
-sns.set_theme()
 num_gpus = 1
+
 if torch.cuda.is_available(): 
     device = 'cuda'
     torch.cuda.manual_seed(42)

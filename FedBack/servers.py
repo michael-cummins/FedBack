@@ -1,7 +1,7 @@
 import torch
 from typing import List
-from admm.utils import sum_params, add_params, average_params
-from admm import agents
+from FedBack.utils import sum_params, add_params, average_params
+from FedBack import agents
 from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
@@ -9,7 +9,7 @@ from collections import OrderedDict
 import statistics
 import subprocess
 import re
-from admm.utils import sublist_by_fraction
+from FedBack.utils import sublist_by_fraction
 import copy
 
 

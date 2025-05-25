@@ -5,6 +5,8 @@ import os
 from natsort import natsorted
 from typing import List
 
+sns.set_theme()
+
 def list_files_in_folder(folder_path):
     # Check if the provided path is a directory
     if not os.path.isdir(folder_path):
@@ -40,7 +42,6 @@ def multiple_acc(dirs: List, rate: int, save_file: str, exp:bool):
     plt.legend() 
     plt.show()
     plt.ylim([0,1])
-    # plt.xlim([0,len(val)])
     plt.savefig(save_dir+save_file)
     plt.cla()
     plt.clf()
