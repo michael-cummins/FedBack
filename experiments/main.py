@@ -14,7 +14,7 @@ from admm.utils import average_params
 # from admm.data import partition_data, split_dataset
 # from admm.moon_dataset import get_dataloader, partition_data
 from admm.data import get_cifar_data, get_mnist_data
-from cifar_jobs import FedLearnJob, FedADMMJob, FedEventJob
+from jobs import FedLearnJob, FedADMMJob, FedEventJob
 
 sns.set_theme()
 num_gpus = 1
