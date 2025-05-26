@@ -4,18 +4,21 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='admm',
+    name='fedback',
     version='0.0.1',
     author='Michael Cummins',
-    description='Federated Learning via ADMM',
+    description='Controlling Participation in Federated Learning',
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    url='https://github.com/michael-cummins/ADMM',
+    url='https://github.com/michael-cummins/FedBack',
     install_requires=[
-        'numpy>=1.25.2',
-        'torch>=1.0',
-        'torchvision>=1.0',
+        'torch>=2',
+        'torchvision',
+        'matplotlib',
+        'seaborn',
+        'natsort',
+        'tqdm',
     ],
     classifiers=[
         "Programming Language :: Python :: 3"

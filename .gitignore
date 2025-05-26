@@ -1,7 +1,15 @@
 __pycache__
 *.py[cod]
 *$py.class
+.gitattributes
 
+*.err
+*.out
+*.log
+*.npy
+*.png
+!assets/*.png
+*.tex
 # Distribution / packaging 
 .Python build/ 
 develop-eggs/ 
@@ -20,12 +28,14 @@ wheels/
 *.egg 
 *.manifest 
 *.spec 
+token.txt
 
 # Log files
 pip-log.txt
 pip-delete-this-directory.txt
 *.log
-
+*.err
+*.out
 # Unit test / coverage reports 
 htmlcov/ 
 .tox/ 
@@ -104,3 +114,7 @@ GitHub.sublime-settings
 !.vscode/launch.json 
 !.vscode/extensions.json 
 .history
+experiments/figure_data/
+experiments/data/
+**/outputs
+**/images
