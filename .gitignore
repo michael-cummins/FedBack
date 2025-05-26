@@ -8,6 +8,7 @@ __pycache__
 *.log
 *.npy
 *.png
+!assets/*.png
 *.tex
 # Distribution / packaging 
 .Python build/ 

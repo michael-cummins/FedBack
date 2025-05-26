@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # Check for exclusive flags
     if sum([args.avg, args.prox, args.admm, args.back]) != 1:
-        parser.error("Exactly one of --avg, --prox, or --admm must be set to True.")
+        parser.error("Exactly one of --avg, --prox, or --admm must be set.")
     if args.cifar and args.mnist: parser.error('Can only specify one experiment, eith cifar or mnist')
     if not args.cifar and not args.mnist: parser.error('Must specify eith cifar or mnist')
     
@@ -92,5 +92,5 @@ if __name__ == '__main__':
     elif args.avg: job = FedLearnJob(**avg_args)
     elif args.admm: job = FedADMMJob(**ADMM_args)
     elif args.back: job = FedBackJob(**back_args)
-    else: raise ValueError('Need to select an algorithm (avg, prox, admm)')
+    else: raise ValueError('Need to select an algorithm (back, avg, prox, admm)')
     job.run()

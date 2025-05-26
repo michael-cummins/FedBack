@@ -13,7 +13,7 @@ def list_files_in_folder(folder_path):
     """
     # Check if the provided path is a directory
     if not os.path.isdir(folder_path):
-        print(f"Provided path <{folder_path}>is not a directory.")
+        print(f"Provided path <{folder_path}> is not a directory.")
         return []
     # Get a list of all files in the directory
     file_list = os.listdir(folder_path)
