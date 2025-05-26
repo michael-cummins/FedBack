@@ -93,8 +93,6 @@ class EventADMM:
                     global_acc = self.validate_global(loader=loader)
                     acc_descrption = f'{global_acc:.4f}'
             if self.device == 'cuda': torch.cuda.synchronize()
-            
-     
             self.pbar.set_description(f'Accuracy: {acc_descrption}')
             self.val_accs.append(global_acc.detach().cpu().numpy())
             
@@ -183,6 +181,10 @@ class ServerBase:
     
 
 class InexactADMM(ServerBase):
+
+    """
+    Server-side routine for Inexact ADMM
+    """
     
     def __init__(self, clients: List[agents.FedADMM], C: float, t_max: int, 
                 model: torch.nn.Module, device: str, num_clients: int, k0: int) -> None:
@@ -234,6 +236,11 @@ class InexactADMM(ServerBase):
 
 
 class FedAgg(ServerBase):
+
+    """
+    Server-side routine for FedAvg And FedProx
+    """
+    
     def __init__(self, clients: List[agents.FedLearn], C: float, t_max: int,
                   model: torch.nn.Module, device: str) -> None:
         super().__init__(t_max, model, device)

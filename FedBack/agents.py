@@ -1,15 +1,14 @@
-import numpy as np
 import torch.nn as nn
 import torch
-from FedBack.utils import *
 from torch.utils.data.dataloader import DataLoader
 from collections import OrderedDict
 import copy
 
+from FedBack.utils import *
 class FedConsensus:
 
     """
-    Distributed event-based ADMM for federated learning
+    FedBack client routine
     """
     
     def __init__(self, rho: int, N: int, loss: nn.Module, model: nn.Module,
@@ -30,8 +29,7 @@ class FedConsensus:
         self.lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         self.last_communicated_lam = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
         self.dual_residual = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        # self.primal_avg = [torch.zeros(param.shape).to(self.device) for param in self.model.parameters()]
-        # self.optimizer = torch.optim.NAdam(self.model.parameters(), self.lr)
+
         self.train_loader = train_loader
         try:
             net = self.model.network
@@ -41,6 +39,7 @@ class FedConsensus:
         self.criterion = loss
         self.epochs = epochs
         self.data_ratio = data_ratio
+        
         # Get number of params in model
         self.total_params = sum(param.numel() for param in self.model.parameters())
         self.full_loader = DataLoader(train_loader.dataset, batch_size=len(train_loader.dataset))
@@ -52,16 +51,8 @@ class FedConsensus:
         self.primal_avg = self.copy_params(params)
         if round > 0: self.dual_update()
         
-        # local_grad, local_loss = self.Lagrangian(use_global=False, params=params)
-        # global_grad, global_loss = self.Lagrangian(use_global=True, params=params)
-        # print(f'local diff {local_loss}, global diff: {global_loss}')
-        # if local_loss >= global_loss: using_global: int = 1
-        # else: using_global: int = 0
-        
-        using_global = 1
         # Solve argmin problem
-        if using_global == 1: self.model = self.set_parameters(model=self.model, parameters=params)
-        # self.model = self.set_parameters(model=self.model, parameters=params)
+        self.model = self.set_parameters(model=self.model, parameters=params)
         for _ in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
@@ -76,14 +67,6 @@ class FedConsensus:
                 self.optimizer.step() 
         
         self.dual_update()
-        # self.stepper.step()
-        # check for how much paramters changed
-        # delta_prime = 0
-        # for old_param, updated_param, dual_param in zip(self.last_communicated_prime, self.model.parameters(), self.lam):
-        #     with torch.no_grad():
-        #         delta_prime += torch.norm(old_param.data - updated_param.data - dual_param.data, p='fro').item()**2
-        # delta_prime = np.sqrt(delta_prime)
-
         self.update_residual()
         self.last_communicated_prime = self.copy_params(self.model.parameters())
         add_params(self.last_communicated_prime, self.lam)
@@ -145,7 +128,7 @@ class FedConsensus:
 class FedLearn:
 
     """
-    Distributed event-based ADMM for federated learning
+    Client side routine for FedAVG and FedProx
     """
     
     def __init__(self, loss: nn.Module, model: nn.Module, train_loader: DataLoader, 
@@ -221,11 +204,12 @@ class FedADMM:
         self.data_ratio = data_ratio
 
     def update(self, global_params) -> None:
+        
         # Solve argmin problem
         self.primal_avg = self.copy_params(global_params)
         self.dual_update()
-        using_global=True
-        if using_global: self.model = self.set_parameters(parameters=self.copy_params(global_params), model=self.model)
+        
+        self.model = self.set_parameters(parameters=self.copy_params(global_params), model=self.model)
         for epoch in range(self.epochs):
             for i, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.type(torch.LongTensor).to(self.device)
@@ -248,7 +232,6 @@ class FedADMM:
         # Current local z-value
         self.residual = self.copy_params(self.model.parameters())
         add_params(self.residual, self.lam)
-        # scale_params(self.residual, a=1/self.N)
 
     def copy_params(self, params):
         copy = [torch.zeros(param.shape).to(self.device).copy_(param) for param in params]
@@ -263,72 +246,3 @@ class FedADMM:
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
         model.load_state_dict(state_dict, strict=True)
         return model
-    
-class Agent:
-
-    def __init__(self, rho, x_init=None, lam_init=None, z_init=None, nu_init=None) -> None:
-        self.rho = rho
-        self.x = x_init
-        self.lam = lam_init
-        self.z = z_init
-        self.nu = nu_init
-    
-    def primal_update(self) -> None:
-        raise NotImplementedError('Calling from base class "Agent"')
-
-    def auxillary_update(self) -> None:
-        raise NotImplementedError('Calling from base class "Agent"')
-
-    def dual_update(self) -> None:
-        raise NotImplementedError('Calling from base class "Agent"')
-    
-
-class GlobalConsensus(Agent):
-
-    """
-        f(x_i) = x_i ^ 2
-        s.t  x_i = z
-    """
-
-    def __init__(self, rho, x_init, lam_init=None, z_init=None, nu_init=None) -> None:
-        super().__init__(rho, x_init, lam_init, z_init, nu_init)
-        self.primal_avg = 0
-
-    def primal_update(self) -> None:
-        self.x = (self.rho*self.primal_avg - self.lam)/(2 + self.rho)
-    
-    def dual_update(self) -> None:
-        self.lam = self.lam + self.rho*(self.x - self.primal_avg)
-
-
-class EventGlobalConsensus(GlobalConsensus):
-
-    """
-        f(x_i) = x_i ^ 2
-        s.t  x_i = z
-    """
-
-    def __init__(self, rho, N, delta, x_init=None, lam_init=None, z_init=None, nu_init=None) -> None:
-        super().__init__(rho, x_init, lam_init, z_init, nu_init)
-        self.N = N
-        self.delta = delta
-        self.broadcast = False
-        self.C = 0
-        self.last_communicated = self.x
-        self.residual = 0
-
-    def primal_update(self) -> None:
-        
-        ######## replace with SGD torch
-        self.x = (self.rho*self.primal_avg - self.lam + 2*self.C)/(2+self.rho)
-        ########
-    
-        if np.linalg.norm(self.x-self.last_communicated, ord=2) >= self.delta: 
-            self.residual = (self.x - self.last_communicated)/self.N
-            self.last_communicated = self.x
-            self.broadcast = True
-        else:
-            self.broadcast = False
-    
-    def dual_update(self) -> None:
-        self.lam = self.lam + self.rho*(self.x - self.primal_avg)
