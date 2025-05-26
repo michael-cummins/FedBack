@@ -11,7 +11,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    url='https://github.com/michael-cummins/ADMM',
+    url='https://github.com/michael-cummins/FedBack',
     install_requires=[
         'torch>=2',
         'torchvision',

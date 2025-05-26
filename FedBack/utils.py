@@ -90,5 +90,5 @@ def scale_params_gen(model_params, a):
     Scales params of model by a factor of "a"
     """
     for param1 in model_params:
-        yield a*param1 
-    
+        yield a*param1
+

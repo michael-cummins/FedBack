@@ -1,14 +1,16 @@
 import torch
 from typing import List
-from FedBack.utils import sum_params, add_params, average_params
-from FedBack import agents
 from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
 from collections import OrderedDict
 import statistics
-from FedBack.utils import sublist_by_fraction
 import copy
+
+from fedback.utils import sublist_by_fraction
+from fedback.utils import sum_params, add_params, average_params
+from fedback import agents
+
 
 
 class EventADMM:

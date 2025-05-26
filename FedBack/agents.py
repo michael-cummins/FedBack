@@ -4,7 +4,8 @@ from torch.utils.data.dataloader import DataLoader
 from collections import OrderedDict
 import copy
 
-from FedBack.utils import *
+from fedback.utils import *
+
 class FedConsensus:
 
     """

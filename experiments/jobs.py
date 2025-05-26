@@ -4,10 +4,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import numpy as np
 
-from FedBack.models import Cifar10CNN, FCNet
-from FedBack.agents import FedLearn, FedConsensus, FedADMM
-from FedBack.servers import FedAgg, EventADMM, InexactADMM
-from FedBack.utils import average_params
+from fedback.models import Cifar10CNN, FCNet
+from fedback.agents import FedLearn, FedConsensus, FedADMM
+from fedback.servers import FedAgg, EventADMM, InexactADMM
+from fedback.utils import average_params
 import os
 
 class FedBackJob:
@@ -179,8 +179,8 @@ class FedADMMJob:
             self.loads.append(load)
             self.test_accs.append(acc.cpu().numpy())
 
-            np.save(file=data_dir+'accs_'+str(rate*100), arr=self.acc_per_rate)
-            np.save(file=data_dir+'loads_'+str(rate*100), arr=self.loads)
+            np.save(file=data_dir+f'accs_{int(rate*100)}', arr=self.acc_per_rate)
+            np.save(file=data_dir+f'loads_{int(rate*100)}', arr=self.loads)
         
         print(f'saved: {self.acc_per_rate} and {self.loads}')
 
@@ -258,7 +258,7 @@ class FedLearnJob:
             self.loads.append(load)
             self.test_accs.append(acc.cpu().numpy())
 
-            np.save(file=figure_data_dir+'accs_'+str(rate*100), arr=self.acc_per_rate)
-            np.save(file=figure_data_dir+'loads_'+str(rate*100), arr=self.loads)
+            np.save(file=figure_data_dir+f'accs_{int(rate*100)}', arr=self.acc_per_rate)
+            np.save(file=figure_data_dir+f'loads_{int(rate*100)}', arr=self.loads)
 
         print(f'saved: {self.acc_per_rate} and {self.loads}')

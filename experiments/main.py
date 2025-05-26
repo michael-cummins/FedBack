@@ -2,7 +2,7 @@ import torch
 import argparse
 from copy import copy
 
-from FedBack.data import get_cifar_data, get_mnist_data
+from fedback.data import get_cifar_data, get_mnist_data
 from jobs import FedLearnJob, FedADMMJob, FedBackJob
 
 num_gpus = 1
