@@ -3,27 +3,8 @@ import torch.nn as nn
 import random
 import numpy as np
 
-# from flwr.common import FitRes, NDArray, NDArrays, parameters_to_ndarrays
 from typing import Tuple, List
 from functools import reduce
-
-# def flwr_aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
-#     """Compute weighted average."""
-#     # Calculate the total number of examples used during training
-#     # num_examples_total = sum(num_examples for (_, num_examples) in results)
-#     num_clients = len(results)
-#     print(f'Aggregating for {num_clients} clients')
-
-#     # Create a list of weights, each multiplied by the related number of examples
-#     weighted_weights = [
-#         [layer for layer in weights] for weights, _ in results
-#     ]
-#     # Compute average weights of each layer
-#     weights_prime: NDArrays = [
-#         reduce(np.add, layer_updates) / num_clients
-#         for layer_updates in zip(*weighted_weights)
-#     ]
-#     return weights_prime
 
 def split_dataset(dataset, train_ratio, val_ratio):
     dataset_length = len(dataset)
