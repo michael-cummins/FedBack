@@ -4,13 +4,15 @@
 This work was carried out with [Güner Dilsad Er](https://is.mpg.de/person/gder) and [Michael Muehlebach](https://sites.google.com/view/mmuehlebach/) as part of my MEng dissertation at the [Max-Planck Institute for Intelligent Systems](https://is.mpg.de/lds/). The paper has been accepted to L4DC 2025 and can be viewed on [arxiv](https://arxiv.org/abs/2411.19242).
 
 ## Results
-FedBack is capable of achieving equivalent validation accuracies as centralised training routines and therefore avoids client drift (Theorem 5 in [paper](https://arxiv.org/abs/2411.19242)). Additionally, FedBack converges in significantly fewer communication rounds than FedAVG, FedProx, and FedADMM. See the [paper](https://arxiv.org/abs/2411.19242) for a detailed discussion of results.
+FedBack is capable of achieving equivalent validation accuracies as centralised training routines (Theorem 5 in [paper](https://arxiv.org/abs/2411.19242)) and converges in significantly fewer communication rounds than FedAVG, FedProx, and FedADMM. 
 
 ### Training curves for different participation rates.
 ![Graph Results](assets/Graph_results.png)
 
 ### Total number of client participation events required to reach target accuracy.
 ![Table Reults](assets/table_results.png)
+
+See the [paper](https://arxiv.org/abs/2411.19242) for a detailed discussion of results.
 
 ## Running Experiments
 
